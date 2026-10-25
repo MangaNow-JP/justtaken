@@ -14,6 +14,14 @@ const pinnedKeys = JSON.parse(
 );
 const results = [];
 let health;
+const HSTS = 'max-age=63072000; includeSubDomains';
+// Baseline from public/_headers (static) and src/security-headers.ts (Worker responses).
+function assertBaseline(response) {
+  assert.equal(response.headers.get('strict-transport-security'), HSTS);
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+  assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+}
 async function request(path, options = {}) {
   return fetch(origin + path, {
     ...options,
@@ -34,6 +42,8 @@ await check('HTTPS health', async () => {
   const response = await request('/health');
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'no-store');
+  assertBaseline(response);
+  assert.match(response.headers.get('content-security-policy'), /^default-src 'none'/);
   health = await response.json();
   assert.equal(health.service, 'JustTaken');
   assert.equal(health.status, 'ok');
@@ -45,8 +55,13 @@ await Promise.all([
       const response = await request(path);
       assert.equal(response.status, 200);
       assert.match(response.headers.get('content-type'), /text\/html/);
-      assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
-      assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+      const policy = response.headers.get('content-security-policy');
+      assert.match(policy, /frame-ancestors 'none'/);
+      assert.match(policy, /require-trusted-types-for 'script'/);
+      assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval/);
+      assertBaseline(response);
+      assert.equal(response.headers.get('cross-origin-opener-policy'), 'same-origin');
+      assert.equal(response.headers.get('cache-control'), 'public, max-age=0, must-revalidate');
       const body = await response.text();
       assert.match(body, /JustTaken/);
       assert.match(body, /株式会社IMAKAI/);
@@ -66,22 +81,35 @@ await Promise.all([
     }),
   ),
   ...[
-    '/assets/site.css?v=7',
-    '/assets/site.js?v=3',
-    '/assets/legal.css?v=1',
-    '/assets/landing-jp.woff2?v=7',
-    '/assets/friends-960.webp',
-    '/assets/og-cover.png',
-    '/assets/favicon.svg',
-    '/robots.txt',
-    '/sitemap.xml',
-  ].map((path) =>
+    ['/assets/site.css?v=8', 'public, max-age=31536000, immutable'],
+    ['/assets/site.js?v=4', 'public, max-age=31536000, immutable'],
+    ['/assets/legal.css?v=2', 'public, max-age=31536000, immutable'],
+    ['/assets/landing-jp.woff2?v=8', 'public, max-age=31536000, immutable'],
+    ['/assets/friends-960.webp', 'public, max-age=604800'],
+    ['/assets/og-cover.png', 'public, max-age=604800'],
+    ['/assets/favicon.svg', 'public, max-age=604800'],
+    ['/robots.txt', 'public, max-age=0, must-revalidate'],
+    ['/sitemap.xml', 'public, max-age=0, must-revalidate'],
+  ].map(([path, cacheControl]) =>
     check('Landing asset: ' + path, async () => {
       const response = await request(path);
       assert.equal(response.status, 200);
+      // _headers joins repeated names; a single value proves the page policy was detached.
+      assert.equal(response.headers.get('cache-control'), cacheControl);
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
       assert.ok((await response.arrayBuffer()).byteLength > 50);
     }),
   ),
+  check('security.txt is current', async () => {
+    const response = await request('/.well-known/security.txt');
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /^text\/plain/);
+    const body = await response.text();
+    assert.match(body, /^Contact: /m);
+    const expires = Date.parse(/^Expires: (.+)$/m.exec(body)?.[1]);
+    // Renew SECURITY_TXT_EXPIRES in workers/api/src/security-headers.ts before this fails.
+    assert.ok(expires - Date.now() > 30 * 86400000, 'security.txt expires within 30 days');
+  }),
   check('Registration has no public email-list endpoint', async () => {
     const response = await request('/public/early-access');
     assert.equal(response.status, 405);
@@ -111,9 +139,11 @@ await Promise.all([
     check(path, async () => {
       const response = await request(path);
       assert.equal(response.status, 200);
-      assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
-      assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
-      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+      const policy = response.headers.get('content-security-policy');
+      assert.match(policy, /frame-ancestors 'none'/);
+      assert.match(policy, /trusted-types justtaken-verify/);
+      assert.doesNotMatch(policy, /unsafe-inline|unsafe-eval/);
+      assertBaseline(response);
       const body = await response.text();
       assert.ok(body.length > 1000);
       if (path === '/verify') assert.match(body, /撮影証明/);
