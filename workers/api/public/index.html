@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#103d34" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
     <title>JustTaken — 盛らない、つくらない。いまを、そのまま。</title>
     <meta
       name="description"
@@ -12,22 +13,47 @@
     <link rel="canonical" href="https://justtaken.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ja_JP" />
+    <meta property="og:site_name" content="JustTaken" />
     <meta property="og:title" content="JustTaken — いまを、そのまま。" />
     <meta property="og:description" content="撮って、つながる。ありのままの写真と動画のSNS。" />
     <meta property="og:url" content="https://justtaken.app/" />
     <meta property="og:image" content="https://justtaken.app/assets/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JustTaken — いまを、そのまま。" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
     <link
       rel="preload"
-      href="/assets/landing-jp.woff2?v=7"
+      href="/assets/landing-jp.woff2?v=8"
       as="font"
       type="font/woff2"
       crossorigin
     />
     <link rel="preload" as="image" href="/assets/friends-960.webp" fetchpriority="high" />
-    <link rel="stylesheet" href="/assets/site.css?v=7" />
-    <script src="/assets/site.js?v=3" defer></script>
+    <link rel="stylesheet" href="/assets/site.css?v=8" />
+    <script src="/assets/site.js?v=4" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://justtaken.app/#organization",
+            "name": "株式会社IMAKAI",
+            "url": "https://imakai.co.jp/"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://justtaken.app/#website",
+            "name": "JustTaken",
+            "url": "https://justtaken.app/",
+            "inLanguage": "ja",
+            "publisher": { "@id": "https://justtaken.app/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body class="landing">
     <a class="skip-link" href="#main">本文へ移動</a>
@@ -72,15 +98,11 @@
           <circle cx="12" cy="7" r="4" />
           <path d="M4 22v-3a8 8 0 0 1 16 0v3Z" />
         </symbol>
-        <symbol id="i-people" viewBox="0 0 24 24">
-          <circle cx="9" cy="6" r="4" />
-          <path d="M2 22v-4a7 7 0 0 1 14 0v4M17 3a4 4 0 0 1 0 8m3 11v-5a6 6 0 0 0-3-5" />
-        </symbol>
         <symbol id="i-record" viewBox="0 0 24 24">
           <rect x="4" y="2" width="16" height="20" rx="3" />
           <path d="M8 7h8M8 11h8M8 15h5" />
         </symbol>
-        <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
         <symbol id="i-mark" viewBox="0 0 48 48">
           <path
             d="M4 15V9a5 5 0 0 1 5-5h7m17 0h6a5 5 0 0 1 5 5v7M4 33v6a5 5 0 0 0 5 5h7m17 0h6a5 5 0 0 0 5-5v-6M13 16h22M27 16v19M18 23v7a6 6 0 0 1-12 0"
@@ -104,13 +126,14 @@
         >
         <nav class="desktop-nav" aria-label="メインナビゲーション">
           <a href="#about">JustTakenとは</a><a href="#camera">撮る</a><a href="#connect">つながる</a
-          ><a href="#proof">撮影証明</a><a href="#biz">for Biz</a>
+          ><a href="#proof">撮影証明</a><a href="#biz">for Biz</a><a href="#faq">よくある質問</a>
         </nav>
         <div class="nav-actions">
-          <button class="button button-lime button-small" data-signup>
+          <button class="button button-lime button-small" type="button" data-signup>
             先行登録 <svg class="icon" aria-hidden="true"><use href="#i-diagonal" /></svg></button
           ><button
             class="menu-toggle"
+            type="button"
             aria-label="メニューを開く"
             aria-expanded="false"
             aria-controls="mobile-nav"
@@ -129,15 +152,31 @@
         <div class="hero-copy">
           <p class="eyebrow"><span class="live-dot"></span>写真と動画のSNS、JustTaken</p>
           <h1 id="hero-title">
-            <span>盛らない、つくらない。</span><span class="highlight">いまを、そのまま。</span>
+            <span>盛らない、つくらない。</span><span class="hero-accent">いまを、そのまま。</span>
           </h1>
           <p class="hero-description">
             帰り道の景色も、友だちの笑い声も。<br />自分で撮った写真と動画を、そのまま残す。<br />JustTakenは、そんなカメラとSNSです。
           </p>
-          <button class="button button-forest hero-button" data-signup>
-            先行登録する <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button
-          ><a class="text-link hero-link" href="#moments">JustTakenを知る <span>↓</span></a>
-          <p class="availability">iOS・Android向けに開発中</p>
+          <div class="hero-actions">
+            <button class="button button-forest" type="button" data-signup>
+              先行登録する
+              <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button
+            ><a class="text-link" href="#moments"
+              >JustTakenを知る <span aria-hidden="true">↓</span></a
+            >
+          </div>
+          <p class="availability">iOS・Android向けに開発中 · 先行登録は無料</p>
+          <ul class="hero-points" aria-label="JustTakenの特徴">
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#i-image" /></svg>元の画質で保存
+            </li>
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#i-video" /></svg>最大60秒の動画
+            </li>
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#i-record" /></svg>撮影証明を添えて
+            </li>
+          </ul>
         </div>
         <div class="hero-photos" aria-hidden="true">
           <figure class="floating-photo hero-friends">
@@ -151,37 +190,44 @@
             <figcaption>なんでもない日が、いい日。</figcaption>
           </figure>
           <figure class="floating-photo hero-dog">
-            <img src="/assets/dog-480.webp" width="480" height="621" alt="" />
+            <img src="/assets/dog-480.webp" width="480" height="621" alt="" decoding="async" />
           </figure>
           <figure class="floating-photo hero-coffee">
-            <img src="/assets/coffee-480.webp" width="480" height="320" alt="" />
+            <img src="/assets/coffee-480.webp" width="480" height="320" alt="" decoding="async" />
           </figure>
         </div>
       </section>
 
       <section class="moments section-shell" id="moments" aria-labelledby="moments-title">
         <div class="section-heading">
-          <div>
+          <div class="section-head">
             <p class="section-kicker">日々の写真</p>
             <h2 id="moments-title">今日、なにを撮った？</h2>
           </div>
           <div class="gallery-actions">
-            <span>写真をタップして見る</span
-            ><button class="round-button gallery-prev" aria-label="前の写真へ">
+            <span>写真をタップして拡大</span
+            ><button class="round-button gallery-prev" type="button" aria-label="前の写真へ">
               <svg class="icon flip" aria-hidden="true"><use href="#i-arrow" /></svg></button
-            ><button class="round-button gallery-next" aria-label="次の写真へ">
+            ><button class="round-button gallery-next" type="button" aria-label="次の写真へ">
               <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
             </button>
           </div>
         </div>
         <div class="moment-gallery" tabindex="0" aria-label="日常の写真ギャラリー">
-          <button class="moment-card" data-photo="landscape" data-caption="見上げた景色">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="landscape"
+            data-caption="見上げた景色"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/landscape-480.webp"
                 width="480"
                 height="286"
                 loading="lazy"
+                decoding="async"
                 alt="雲海と緑の山々に差し込む朝の光" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
@@ -189,13 +235,20 @@
                 <use href="#i-diagonal" /></svg></span
             ><span class="moment-caption"><span class="moment-number">01</span>見上げた景色</span>
           </button>
-          <button class="moment-card" data-photo="coffee" data-caption="いつもの朝">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="coffee"
+            data-caption="いつもの朝"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/coffee-480.webp"
                 width="480"
                 height="320"
                 loading="lazy"
+                decoding="async"
                 alt="グラスに注がれたアイスコーヒー" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
@@ -203,13 +256,20 @@
                 <use href="#i-diagonal" /></svg></span
             ><span class="moment-caption"><span class="moment-number">02</span>いつもの朝</span>
           </button>
-          <button class="moment-card" data-photo="friends" data-caption="友だちと">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="friends"
+            data-caption="友だちと"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/friends-480.webp"
                 width="480"
                 height="270"
                 loading="lazy"
+                decoding="async"
                 alt="公園で笑顔を寄せ合う友人たち" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
@@ -217,35 +277,56 @@
                 <use href="#i-diagonal" /></svg></span
             ><span class="moment-caption"><span class="moment-number">03</span>友だちと</span>
           </button>
-          <button class="moment-card" data-photo="forest" data-caption="ちょっと寄り道">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="forest"
+            data-caption="ちょっと寄り道"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/forest-480.webp"
                 width="480"
                 height="320"
                 loading="lazy"
+                decoding="async"
                 alt="木漏れ日が降り注ぐ緑の森" /><svg class="icon photo-expand" aria-hidden="true">
                 <use href="#i-diagonal" /></svg></span
             ><span class="moment-caption"><span class="moment-number">04</span>ちょっと寄り道</span>
           </button>
-          <button class="moment-card" data-photo="selfie" data-caption="ふとした瞬間">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="selfie"
+            data-caption="ふとした瞬間"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/selfie-480.webp"
                 width="480"
                 height="664"
                 loading="lazy"
+                decoding="async"
                 alt="自然な笑顔のポートレート" /><svg class="icon photo-expand" aria-hidden="true">
                 <use href="#i-diagonal" /></svg></span
             ><span class="moment-caption"><span class="moment-number">05</span>ふとした瞬間</span>
           </button>
-          <button class="moment-card" data-photo="dog" data-caption="海まで散歩">
+          <button
+            class="moment-card"
+            type="button"
+            aria-haspopup="dialog"
+            data-photo="dog"
+            data-caption="海まで散歩"
+          >
             <span class="moment-image"
               ><img
                 src="/assets/dog-480.webp"
                 width="480"
                 height="621"
                 loading="lazy"
+                decoding="async"
                 alt="砂浜を走るゴールデンレトリバー" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
@@ -255,124 +336,15 @@
           </button>
         </div>
         <p class="image-credit">
-          掲載写真はイメージです。<a href="/credits">写真の出典 <span>↗</span></a>
+          掲載写真はイメージです。<a href="/credits"
+            >写真の出典 <span aria-hidden="true">↗</span></a
+          >
         </p>
-      </section>
-
-      <section class="connection section-shell" id="connect" aria-labelledby="connect-title">
-        <h2 class="centered connection-title" id="connect-title">
-          うまく撮れた日も、そうでもない日も。
-        </h2>
-        <div class="connection-panel">
-          <div class="connection-copy">
-            <h3>「今日、こんなことがあったよ」</h3>
-            <p>
-              いつものコーヒー。散歩中に会った犬。<br />わざわざ話すほどでもないことを、<br />写真ひとつで友だちに。
-            </p>
-            <button class="button button-forest" data-signup>
-              公開のお知らせを受け取る
-              <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
-            </button>
-          </div>
-          <div class="social-scene" aria-label="開発中のアプリ画面と写真のイメージ">
-            <figure class="scene-photo scene-friends">
-              <img
-                src="/assets/friends-480.webp"
-                width="480"
-                height="270"
-                loading="lazy"
-                alt="公園に集まった友人たち"
-              />
-            </figure>
-            <figure class="scene-photo scene-dog">
-              <img
-                src="/assets/dog-480.webp"
-                width="480"
-                height="621"
-                loading="lazy"
-                alt="砂浜を走る犬"
-              />
-            </figure>
-            <figure class="scene-photo scene-selfie">
-              <img
-                src="/assets/selfie-480.webp"
-                width="480"
-                height="664"
-                loading="lazy"
-                alt="笑顔のポートレート"
-              />
-            </figure>
-            <div class="phone">
-              <div class="phone-island"></div>
-              <div class="phone-status" aria-hidden="true"><span>9:41</span><span>▮▮▮ ▰</span></div>
-              <div class="phone-brand">
-                <svg class="icon" aria-hidden="true"><use href="#i-mark" /></svg
-                ><strong>JustTaken</strong><span class="phone-notification"></span>
-              </div>
-              <div class="phone-account">
-                <span class="avatar-dot"></span>
-                <div><strong>今日のひとこま</strong><small>画面イメージ</small></div>
-                <span>···</span>
-              </div>
-              <div class="phone-photo-frame">
-                <img
-                  class="phone-photo"
-                  src="/assets/selfie-480.webp"
-                  width="480"
-                  height="664"
-                  loading="lazy"
-                  alt="JustTakenのフィード画面イメージ"
-                /><span class="photo-watermark" data-watermark aria-hidden="true"
-                  ><svg class="watermark-icon"><use href="#i-mark" /></svg
-                  ><strong>JustTaken</strong></span
-                >
-              </div>
-              <div class="phone-icons" aria-hidden="true">
-                <svg class="icon"><use href="#i-heart" /></svg
-                ><svg class="icon"><use href="#i-comment" /></svg
-                ><svg class="icon"><use href="#i-share" /></svg>
-              </div>
-              <p class="phone-caption">笑いすぎた、いつもの帰り道。</p>
-              <div class="phone-nav" aria-hidden="true">
-                <svg class="icon"><use href="#i-home" /></svg
-                ><span
-                  ><svg class="icon"><use href="#i-camera" /></svg></span
-                ><svg class="icon"><use href="#i-person" /></svg>
-              </div>
-            </div>
-          </div>
-          <p class="scene-note">アプリ画面は開発中のイメージです。</p>
-        </div>
-        <div class="feature-accordions">
-          <details class="feature-detail mint">
-            <summary>
-              <svg class="icon" aria-hidden="true"><use href="#i-image" /></svg
-              ><span>写真も動画も、元の画質で。</span
-              ><svg class="icon chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-            </summary>
-            <p>
-              撮影した写真・動画は、公開用の原本として再圧縮せずに保存。HEIF・RAW・HDR写真も、対応端末で撮影した形式を保持します。フィード用のプレビューは別に用意します。
-            </p>
-          </details>
-          <details class="feature-detail blue">
-            <summary>
-              <svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
-              ><span>SNSに投稿せず、撮影証明を共有。</span
-              ><svg class="icon chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-            </summary>
-            <p>
-              自分の記録として残しても、必要な人にだけ渡しても。原本と撮影証明を一緒に共有すると、受け取った人がファイルの一致を確かめられます。<a
-                href="/verify"
-                >撮影証明ページを開く →</a
-              >
-            </p>
-          </details>
-        </div>
       </section>
 
       <section class="camera-section section-shell" id="camera" aria-labelledby="camera-title">
         <div class="section-heading camera-heading">
-          <div>
+          <div class="section-head">
             <p class="section-kicker">JustTakenのカメラ</p>
             <h2 id="camera-title">写真も、動画も。撮った画質で。</h2>
             <p class="section-description">
@@ -383,6 +355,7 @@
           </div>
           <div class="camera-tabs" role="tablist" aria-label="撮影機能">
             <button
+              type="button"
               role="tab"
               id="tab-photo"
               aria-selected="true"
@@ -391,6 +364,7 @@
             >
               写真</button
             ><button
+              type="button"
               role="tab"
               id="tab-video"
               aria-selected="false"
@@ -400,6 +374,7 @@
             >
               動画</button
             ><button
+              type="button"
               role="tab"
               id="tab-selfie"
               aria-selected="false"
@@ -418,6 +393,7 @@
               width="960"
               height="1328"
               loading="lazy"
+              decoding="async"
               alt="笑顔を自然なままに写したポートレート"
             /><span class="camera-caption">表情も、ありのまま。</span>
           </div>
@@ -427,6 +403,7 @@
               width="960"
               height="572"
               loading="lazy"
+              decoding="async"
               alt="広がる雲海と山々の景色"
             />
             <div class="camera-viewfinder" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -440,6 +417,7 @@
               width="960"
               height="1243"
               loading="lazy"
+              decoding="async"
               alt="砂浜を駆けるゴールデンレトリバー"
             /><span class="camera-caption">ふとした瞬間も。</span>
           </div>
@@ -454,6 +432,7 @@
               width="960"
               height="641"
               loading="lazy"
+              decoding="async"
               alt="ロゴ表示のイメージ：アイスコーヒーの写真"
             /><span class="photo-watermark" data-watermark aria-hidden="true"
               ><svg class="watermark-icon"><use href="#i-mark" /></svg
@@ -487,136 +466,250 @@
         </div>
       </section>
 
-      <section
-        class="proof-section section-shell capture-proof"
-        id="proof"
-        aria-labelledby="proof-title"
-      >
-        <div class="certificate-layout">
-          <div class="certificate-copy">
-            <p class="section-kicker">撮影証明</p>
-            <h2 id="proof-title">自分で撮った一枚に、<br />証明を添えて。</h2>
-            <p class="certificate-intro">
-              「これ、自分で撮ったんだよ」と伝えたいときに。<br />写真や動画と一緒に、撮影記録も渡せます。
+      <section class="connection section-shell" id="connect" aria-labelledby="connect-title">
+        <div class="section-head">
+          <p class="section-kicker">つながる</p>
+          <h2 class="connection-title" id="connect-title">うまく撮れた日も、そうでもない日も。</h2>
+        </div>
+        <div class="connection-panel">
+          <div class="connection-copy">
+            <h3>「今日、こんなことがあったよ」</h3>
+            <p>
+              いつものコーヒー。散歩中に会った犬。<br />わざわざ話すほどでもないことを、<br />写真ひとつで友だちに。
             </p>
-            <ul class="certificate-benefits">
-              <li>
-                <span class="certificate-benefit-icon"
-                  ><svg class="icon" aria-hidden="true"><use href="#i-camera" /></svg
-                ></span>
-                <div>
-                  <h3>原本と撮影記録をセットで保存</h3>
-                  <p>アプリのカメラで撮影した記録と、写真・動画の原本を結び付けます。</p>
-                </div>
-              </li>
-              <li>
-                <span class="certificate-benefit-icon"
-                  ><svg class="icon" aria-hidden="true"><use href="#i-record" /></svg
-                ></span>
-                <div>
-                  <h3>自分だけの記録にも</h3>
-                  <p>SNSへの公開は任意。原本と署名付きの証明を、自分の記録として保存できます。</p>
-                </div>
-              </li>
-              <li>
-                <span class="certificate-benefit-icon"
-                  ><svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
-                ></span>
-                <div>
-                  <h3>受け取った人が照合できる</h3>
-                  <p>
-                    証明をリンクやファイルで共有。原本も一緒に渡すと、受け取った人が一致を確認できます。
-                  </p>
-                </div>
-              </li>
-            </ul>
-            <a class="button button-forest" href="/verify"
-              >撮影証明ページを見る
+            <button class="button button-forest" type="button" data-signup>
+              公開のお知らせを受け取る
+              <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
+            </button>
+          </div>
+          <div class="social-scene" aria-label="開発中のアプリ画面と写真のイメージ" role="img">
+            <figure class="scene-photo scene-friends">
+              <img
+                src="/assets/friends-480.webp"
+                width="480"
+                height="270"
+                loading="lazy"
+                decoding="async"
+                alt=""
+              />
+            </figure>
+            <figure class="scene-photo scene-dog">
+              <img
+                src="/assets/dog-480.webp"
+                width="480"
+                height="621"
+                loading="lazy"
+                decoding="async"
+                alt=""
+              />
+            </figure>
+            <figure class="scene-photo scene-selfie">
+              <img
+                src="/assets/selfie-480.webp"
+                width="480"
+                height="664"
+                loading="lazy"
+                decoding="async"
+                alt=""
+              />
+            </figure>
+            <div class="phone">
+              <div class="phone-island"></div>
+              <div class="phone-status"><span>9:41</span><span>▮▮▮ ▰</span></div>
+              <div class="phone-brand">
+                <svg class="icon"><use href="#i-mark" /></svg><strong>JustTaken</strong
+                ><span class="phone-notification"></span>
+              </div>
+              <div class="phone-account">
+                <span class="avatar-dot"></span>
+                <div><strong>今日のひとこま</strong><small>画面イメージ</small></div>
+                <span>···</span>
+              </div>
+              <div class="phone-photo-frame">
+                <img
+                  class="phone-photo"
+                  src="/assets/selfie-480.webp"
+                  width="480"
+                  height="664"
+                  loading="lazy"
+                  decoding="async"
+                  alt=""
+                /><span class="photo-watermark" data-watermark
+                  ><svg class="watermark-icon"><use href="#i-mark" /></svg
+                  ><strong>JustTaken</strong></span
+                >
+              </div>
+              <div class="phone-icons">
+                <svg class="icon"><use href="#i-heart" /></svg
+                ><svg class="icon"><use href="#i-comment" /></svg
+                ><svg class="icon"><use href="#i-share" /></svg>
+              </div>
+              <p class="phone-caption">笑いすぎた、いつもの帰り道。</p>
+              <div class="phone-nav">
+                <svg class="icon"><use href="#i-home" /></svg
+                ><span
+                  ><svg class="icon"><use href="#i-camera" /></svg></span
+                ><svg class="icon"><use href="#i-person" /></svg>
+              </div>
+            </div>
+          </div>
+          <p class="scene-note">アプリ画面は開発中のイメージです。</p>
+        </div>
+        <div class="feature-cards">
+          <article class="feature-card mint">
+            <span class="feature-icon"
+              ><svg class="icon" aria-hidden="true"><use href="#i-image" /></svg
+            ></span>
+            <h3>写真も動画も、元の画質で。</h3>
+            <p>
+              撮影した写真・動画は、公開用の原本として再圧縮せずに保存。HEIF・RAW・HDR写真も、対応端末で撮影した形式を保持します。フィード用のプレビューは別に用意します。
+            </p>
+          </article>
+          <article class="feature-card blue">
+            <span class="feature-icon"
+              ><svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
+            ></span>
+            <h3>SNSに投稿せず、撮影証明を共有。</h3>
+            <p>
+              自分の記録として残しても、必要な人にだけ渡しても。原本と撮影証明を一緒に共有すると、受け取った人がファイルの一致を確かめられます。
+            </p>
+            <a class="text-link" href="/verify"
+              >撮影証明ページを開く
               <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg
             ></a>
-            <p class="certificate-release-note">
-              アプリは開発中です。受け手の検証にログインは必要ありません。
-            </p>
-          </div>
-          <div class="certificate-stage">
-            <article
-              class="certificate-paper"
-              aria-label="撮影証明書の表示イメージ。実際の証明ではありません。"
-            >
-              <header class="certificate-paper-header">
-                <span class="certificate-brand"
-                  ><svg class="brand-mark" aria-hidden="true"><use href="#i-mark" /></svg
-                  ><strong>JustTaken</strong></span
-                ><span class="certificate-sample">SAMPLE</span>
-              </header>
-              <div class="certificate-paper-title">
-                <div>
-                  <span>CAPTURE RECORD</span>
-                  <h3>撮影証明書</h3>
-                </div>
-                <svg class="icon" aria-hidden="true"><use href="#i-record" /></svg>
-              </div>
-              <div class="certificate-photo">
-                <img
-                  src="/assets/coffee-960.webp"
-                  width="960"
-                  height="641"
-                  alt="証明書の表示例に使用したコーヒーの素材写真"
-                  loading="lazy"
-                /><span>写真・動画に対応</span>
-              </div>
-              <p class="certificate-record-label">
-                <span class="live-dot"></span>この写真に、確かめられる撮影記録を。
-              </p>
-              <dl class="certificate-fields">
-                <div>
-                  <dt>撮影経路</dt>
-                  <dd>JustTakenのカメラ</dd>
-                </div>
-                <div>
-                  <dt>原本の照合</dt>
-                  <dd>保存ファイルとの一致</dd>
-                </div>
-                <div>
-                  <dt>記録の裏付け</dt>
-                  <dd>第三者時刻・監査ログ</dd>
-                </div>
-              </dl>
-              <footer class="certificate-paper-footer">
-                <svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
-                ><span>保存して、必要な人に共有。</span
-                ><span class="certificate-serial">SAMPLE / 001</span>
-              </footer>
-              <p class="certificate-sample-note">
-                証明書の表示イメージです。<br />掲載写真を認証したものではありません。
-              </p>
-            </article>
-          </div>
+          </article>
         </div>
-        <div class="certificate-trust">
-          <span class="certificate-trust-icon"
-            ><svg class="icon" aria-hidden="true"><use href="#i-record" /></svg
-          ></span>
-          <div>
-            <h3>記録の変更を、あとから確認できるように</h3>
-            <p>
-              第三者の時刻認証と公開監査ログにも記録を残します。手元の証明と照合することで、運営側での書き換えの検出に役立ちます。
-            </p>
+      </section>
+
+      <section class="proof-section capture-proof" id="proof" aria-labelledby="proof-title">
+        <div class="section-shell">
+          <div class="certificate-layout">
+            <div class="certificate-copy">
+              <p class="section-kicker">撮影証明</p>
+              <h2 id="proof-title">自分で撮った一枚に、<br />証明を添えて。</h2>
+              <p class="certificate-intro">
+                「これ、自分で撮ったんだよ」と伝えたいときに。<br />写真や動画と一緒に、撮影記録も渡せます。
+              </p>
+              <ul class="certificate-benefits">
+                <li>
+                  <span class="certificate-benefit-icon"
+                    ><svg class="icon" aria-hidden="true"><use href="#i-camera" /></svg
+                  ></span>
+                  <div>
+                    <h3>原本と撮影記録をセットで保存</h3>
+                    <p>アプリのカメラで撮影した記録と、写真・動画の原本を結び付けます。</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="certificate-benefit-icon"
+                    ><svg class="icon" aria-hidden="true"><use href="#i-record" /></svg
+                  ></span>
+                  <div>
+                    <h3>自分だけの記録にも</h3>
+                    <p>SNSへの公開は任意。原本と署名付きの証明を、自分の記録として保存できます。</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="certificate-benefit-icon"
+                    ><svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
+                  ></span>
+                  <div>
+                    <h3>受け取った人が照合できる</h3>
+                    <p>
+                      証明をリンクやファイルで共有。原本も一緒に渡すと、受け取った人が一致を確認できます。
+                    </p>
+                  </div>
+                </li>
+              </ul>
+              <a class="button button-forest" href="/verify"
+                >撮影証明ページを見る
+                <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg
+              ></a>
+              <p class="certificate-release-note">
+                アプリは開発中です。受け手の検証にログインは必要ありません。
+              </p>
+            </div>
+            <div class="certificate-stage">
+              <article
+                class="certificate-paper"
+                aria-label="撮影証明書の表示イメージ。実際の証明ではありません。"
+              >
+                <header class="certificate-paper-header">
+                  <span class="certificate-brand"
+                    ><svg class="brand-mark" aria-hidden="true"><use href="#i-mark" /></svg
+                    ><strong>JustTaken</strong></span
+                  ><span class="certificate-sample">SAMPLE</span>
+                </header>
+                <div class="certificate-paper-title">
+                  <div>
+                    <span>CAPTURE RECORD</span>
+                    <h3>撮影証明書</h3>
+                  </div>
+                  <svg class="icon" aria-hidden="true"><use href="#i-record" /></svg>
+                </div>
+                <div class="certificate-photo">
+                  <img
+                    src="/assets/coffee-960.webp"
+                    width="960"
+                    height="641"
+                    alt="証明書の表示例に使用したコーヒーの素材写真"
+                    loading="lazy"
+                    decoding="async"
+                  /><span>写真・動画に対応</span>
+                </div>
+                <p class="certificate-record-label">
+                  <span class="live-dot"></span>この写真に、確かめられる撮影記録を。
+                </p>
+                <dl class="certificate-fields">
+                  <div>
+                    <dt>撮影経路</dt>
+                    <dd>JustTakenのカメラ</dd>
+                  </div>
+                  <div>
+                    <dt>原本の照合</dt>
+                    <dd>保存ファイルとの一致</dd>
+                  </div>
+                  <div>
+                    <dt>記録の裏付け</dt>
+                    <dd>第三者時刻・監査ログ</dd>
+                  </div>
+                </dl>
+                <footer class="certificate-paper-footer">
+                  <svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
+                  ><span>保存して、必要な人に共有。</span
+                  ><span class="certificate-serial">SAMPLE / 001</span>
+                </footer>
+                <p class="certificate-sample-note">
+                  証明書の表示イメージです。<br />掲載写真を認証したものではありません。
+                </p>
+              </article>
+            </div>
           </div>
-        </div>
-        <div class="certificate-scope" id="proof-scope">
-          <p>
-            証明するのは、アプリ内の撮影経路とファイルの一致です。写っている内容の真実性や「AIが一切関わっていないこと」を保証するものではありません。
-          </p>
-          <details>
-            <summary>
-              「AI生成ではない証明」との違い
-              <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
-            </summary>
+          <div class="certificate-trust">
+            <span class="certificate-trust-icon"
+              ><svg class="icon" aria-hidden="true"><use href="#i-record" /></svg
+            ></span>
+            <div>
+              <h3>記録の変更を、あとから確認できるように</h3>
+              <p>
+                第三者の時刻認証と公開監査ログにも記録を残します。手元の証明と照合することで、運営側での書き換えの検出に役立ちます。
+              </p>
+            </div>
+          </div>
+          <div class="certificate-scope" id="proof-scope">
             <p>
-              生成画像かどうかを見た目で判定する仕組みではありません。アプリで撮影した記録と、保存した原本からの変更の有無を確かめます。AI画像を映した画面や印刷物の撮り直し、演出された場面までは見分けられません。撮影者の実名や著作権も認定しません。
+              証明するのは、アプリ内の撮影経路とファイルの一致です。写っている内容の真実性や「AIが一切関わっていないこと」を保証するものではありません。
             </p>
-          </details>
+            <details>
+              <summary>
+                「AI生成ではない証明」との違い
+                <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron" /></svg>
+              </summary>
+              <p>
+                生成画像かどうかを見た目で判定する仕組みではありません。アプリで撮影した記録と、保存した原本からの変更の有無を確かめます。AI画像を映した画面や印刷物の撮り直し、演出された場面までは見分けられません。撮影者の実名や著作権も認定しません。
+              </p>
+            </details>
+          </div>
         </div>
       </section>
 
@@ -636,7 +729,9 @@
               <a class="button button-lime" href="/verify"
                 >検証ページを見る
                 <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a
-              ><a class="biz-flow-link" href="#biz-flow">活用の流れを見る <span>↓</span></a>
+              ><a class="biz-flow-link" href="#biz-flow"
+                >活用の流れを見る <span aria-hidden="true">↓</span></a
+              >
             </div>
             <p class="biz-development">法人向けの活用構想です。アプリは開発中です。</p>
           </div>
@@ -753,57 +848,107 @@
             <p>
               確認できるのは、アプリ内の撮影経路とファイルの一致です。事故の実在・損害原因・保険詐欺の有無を保証せず、照合結果だけで保険金の支払可否を決めるものではありません。
             </p>
-            <a href="#proof-scope">撮影証明の範囲を確認する <span>↗</span></a>
+            <a href="#proof-scope">撮影証明の範囲を確認する <span aria-hidden="true">↑</span></a>
           </div>
           <p class="biz-availability">専用の法人管理画面・外部システム連携は未提供です。</p>
         </div>
       </section>
 
       <section class="faq-section section-shell" id="faq" aria-labelledby="faq-title">
-        <div>
+        <div class="faq-intro">
+          <p class="section-kicker">FAQ</p>
           <h2 id="faq-title">よくある質問</h2>
+          <p>
+            ほかにご不明な点は、運営会社の<a
+              href="https://imakai.co.jp/contact"
+              target="_blank"
+              rel="noopener noreferrer"
+              >お問い合わせフォーム <span aria-hidden="true">↗</span></a
+            >からご連絡ください。
+          </p>
         </div>
         <div class="faq-list">
           <details>
-            <summary>いつから使えますか？<span>＋</span></summary>
+            <summary>
+              いつから使えますか？<span class="faq-toggle" aria-hidden="true"></span>
+            </summary>
             <p>
               現在、iOS・Android向けに開発中です。公開日が決まり次第、先行登録いただいた方へご案内する予定です。先行登録は無料で、アプリのアカウント作成とは別の受付です。
             </p>
           </details>
           <details>
-            <summary>AIや加工は使わないのですか？<span>＋</span></summary>
+            <summary>
+              AIや加工は使わないのですか？<span class="faq-toggle" aria-hidden="true"></span>
+            </summary>
             <p>
               JustTakenは、アプリのカメラで実際に撮影した写真と動画を大切にします。AIで被写体を生成したり、顔や景色を書き換える編集機能は設けません。端末のカメラによる露出・HDRなどの通常の撮影処理は使用します。
             </p>
           </details>
           <details>
-            <summary>AI生成ではないことを証明できますか？<span>＋</span></summary>
+            <summary>
+              AI生成ではないことを証明できますか？<span
+                class="faq-toggle"
+                aria-hidden="true"
+              ></span>
+            </summary>
             <p>
               アプリ内の撮影経路と、受け取ったファイルが保存原本と一致するかを確認できます。AI画像を映した画面の撮り直しなどは識別できないため、「AIが一切関わっていない」という完全な証明ではありません。第三者の時刻認証と監査ログで撮影記録を補強します。
             </p>
           </details>
           <details>
-            <summary>原本の画質や、動画の長さは？<span>＋</span></summary>
+            <summary>
+              原本の画質や、動画の長さは？<span class="faq-toggle" aria-hidden="true"></span>
+            </summary>
             <p>
               保存する原本は再エンコードせず、写真・動画の画質を保持します。動画は最大60秒、音声付きでの撮影に対応します。形式・解像度・HDRなどの対応範囲は端末やカメラによって異なります。
             </p>
           </details>
           <details>
-            <summary>写真を公開せずに使えますか？<span>＋</span></summary>
+            <summary>
+              写真を公開せずに使えますか？<span class="faq-toggle" aria-hidden="true"></span>
+            </summary>
             <p>
               はい。撮影した原本と証明を、自分用に保存できます。SNSへの投稿は任意です。証明だけを必要な人に共有し、あとから共有リンクを停止することもできます。
+            </p>
+          </details>
+          <details>
+            <summary>
+              先行登録の情報はどう扱われますか？<span class="faq-toggle" aria-hidden="true"></span>
+            </summary>
+            <p>
+              メールアドレスと利用予定の端末を、公開のご案内と登録の管理に使います。広告配信や販売には利用しません。保存期間は登録から180日で、登録完了時に保存できる控えのリンクから取り消せます。詳しくは<a
+                href="/privacy#early-access"
+                >プライバシーポリシー</a
+              >をご覧ください。
             </p>
           </details>
         </div>
       </section>
 
-      <section class="closing" id="early-access">
-        <p class="section-kicker">iOS / Android</p>
-        <h2>JustTaken、準備中。</h2>
-        <p>JustTakenは、ただいま開発中です。<br />リリースが決まったら、メールでお知らせします。</p>
-        <button class="button button-lime" data-signup>
-          先行登録する <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button
-        ><span class="closing-note">無料の先行案内受付 · iOS / Android</span>
+      <section class="closing" id="early-access" aria-labelledby="closing-title">
+        <div class="closing-inner">
+          <p class="section-kicker">iOS / Android</p>
+          <h2 id="closing-title">JustTaken、準備中。</h2>
+          <p>
+            JustTakenは、ただいま開発中です。<br />リリースが決まったら、メールでお知らせします。
+          </p>
+          <form class="closing-form" id="closing-form" method="dialog">
+            <label class="visually-hidden" for="closing-email">メールアドレス</label
+            ><input
+              type="email"
+              id="closing-email"
+              autocomplete="email"
+              maxlength="254"
+              placeholder="メールアドレス"
+              required
+            /><button class="button button-forest" type="submit">
+              先行登録する <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg>
+            </button>
+          </form>
+          <p class="closing-note">
+            無料の先行案内受付 · 次の画面で利用予定の端末を選び、同意のうえ登録します。
+          </p>
+        </div>
       </section>
     </main>
     <footer class="site-footer">
@@ -832,7 +977,7 @@
     </footer>
 
     <dialog class="signup-dialog" id="signup-dialog" aria-labelledby="signup-title">
-      <button class="dialog-close" data-close aria-label="閉じる">
+      <button class="dialog-close" type="button" data-close aria-label="閉じる">
         <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
       </button>
       <div class="dialog-form-view">
@@ -901,11 +1046,11 @@
         <p class="form-note">
           同じメールアドレスで登録済みの場合は、以前の登録と取り消しリンクが引き続き有効です。
         </p>
-        <button class="button button-forest" data-close>閉じる</button>
+        <button class="button button-forest" type="button" data-close>閉じる</button>
       </div>
     </dialog>
     <dialog class="photo-dialog" id="photo-dialog" aria-labelledby="photo-title">
-      <button class="dialog-close" data-close aria-label="写真を閉じる">
+      <button class="dialog-close" type="button" data-close aria-label="写真を閉じる">
         <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg></button
       ><img id="photo-preview" alt="" />
       <div class="photo-dialog-caption">
@@ -914,7 +1059,7 @@
       </div>
     </dialog>
     <dialog class="cancel-dialog signup-dialog" id="cancel-dialog" aria-labelledby="cancel-title">
-      <button class="dialog-close" data-close aria-label="閉じる">
+      <button class="dialog-close" type="button" data-close aria-label="閉じる">
         <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg></button
       ><span class="dialog-brand">JUSTTAKEN / EARLY ACCESS</span>
       <h2 id="cancel-title">先行登録の取り消し</h2>
@@ -922,8 +1067,9 @@
         このリンクに対応する登録情報を削除します。アプリのアカウントや撮影記録には影響しません。
       </p>
       <p class="form-message" id="cancel-message" role="status" aria-live="polite"></p>
-      <button class="button button-forest" id="cancel-registration">登録を取り消す</button
-      ><button class="button button-quiet" data-close>戻る</button>
+      <button class="button button-forest" type="button" id="cancel-registration">
+        登録を取り消す</button
+      ><button class="button button-quiet" type="button" data-close>戻る</button>
     </dialog>
   </body>
 </html>

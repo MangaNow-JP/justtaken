@@ -8,6 +8,7 @@ import { publicProofKeys } from './proof-keys';
 import { verifierRoutes } from './verifier';
 import { anchorsEnabled, retryAnchors } from './anchors';
 import { earlyAccessRoutes, purgeExpiredEarlyAccess } from './early-access';
+import { applySecurityHeaders, securityTxtRoute } from './security-headers';
 import type { Bindings, Principal, Profile } from './types';
 function splitToken(value: unknown) {
   if (typeof value !== 'string' || !/^[-A-Za-z0-9_]{36}\.[-A-Za-z0-9_]{43}$/.test(value))
@@ -35,6 +36,8 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
   if (path === '/.well-known/capture-jwks.json' && method === 'GET') {
     return json(publicProofKeys(env));
   }
+  const securityTxt = securityTxtRoute(request);
+  if (securityTxt) return securityTxt;
   const verifier = verifierRoutes(request);
   if (verifier) return verifier;
   const earlyAccess = await earlyAccessRoutes(request, env);
@@ -263,18 +266,21 @@ export async function handleRequest(
   const origin = request.headers.get('Origin'),
     allowed = origin && env.ALLOWED_ORIGINS?.split(',').includes(origin);
   if (request.method === 'OPTIONS')
-    return new Response(null, {
-      status: allowed ? 204 : 403,
-      headers: allowed
-        ? {
-            'Access-Control-Allow-Origin': origin!,
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,HEAD,OPTIONS',
-            'Access-Control-Allow-Headers': 'Authorization,Content-Type,Range,X-Chunk-SHA256',
-            'Access-Control-Max-Age': '600',
-            Vary: 'Origin',
-          }
-        : {},
-    });
+    return applySecurityHeaders(
+      request,
+      new Response(null, {
+        status: allowed ? 204 : 403,
+        headers: allowed
+          ? {
+              'Access-Control-Allow-Origin': origin!,
+              'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,HEAD,OPTIONS',
+              'Access-Control-Allow-Headers': 'Authorization,Content-Type,Range,X-Chunk-SHA256',
+              'Access-Control-Max-Age': '600',
+              Vary: 'Origin',
+            }
+          : {},
+      }),
+    );
   const result = await rpc(async () => {
     if (request.method !== 'OPTIONS' && env.REQUEST_LIMIT) {
       const limit = await env.REQUEST_LIMIT.limit({
@@ -289,7 +295,7 @@ export async function handleRequest(
     ? result.value
     : json({ error: { code: result.code, message: result.message, requestId } }, result.status);
   response.headers.set('X-Request-ID', requestId);
-  response.headers.set('Referrer-Policy', 'no-referrer');
+  applySecurityHeaders(request, response);
   if (allowed) {
     response.headers.set('Access-Control-Allow-Origin', origin!);
     response.headers.set('Vary', 'Origin');

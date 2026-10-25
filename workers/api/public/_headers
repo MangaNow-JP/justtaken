@@ -1,8 +1,33 @@
+# Static pages and assets only. Worker responses (/v1, /public, /verify, /health, /.well-known)
+# set their own headers in src/security-headers.ts.
 /*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
   X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
   Referrer-Policy: no-referrer
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'
   Cache-Control: public, max-age=0, must-revalidate
+
+# Detach the page policy first: _headers joins repeated header names with commas.
 /assets/*
-  Cache-Control: public, max-age=86400
+  ! Cache-Control
+  Cache-Control: public, max-age=604800
+
+# Versioned by ?v= in every page that links them; bump the version on each change.
+/assets/*.css
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+/assets/*.js
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+/assets/*.woff2
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+# Link previews may load the share image from other sites.
+/assets/og-cover.png
+  ! Cross-Origin-Resource-Policy
+  Cross-Origin-Resource-Policy: cross-origin

@@ -1,24 +1,56 @@
 'use strict';
+// No innerHTML or string-to-code sinks: the page is served with Trusted Types enforced.
 const $ = (s, scope = document) => scope.querySelector(s);
 const $$ = (s, scope = document) => [...scope.querySelectorAll(s)];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
+
+// Header: border once the page scrolls, and the section in view marked in the nav.
+const header = $('.site-header');
+const markScrolled = () => header.toggleAttribute('data-scrolled', scrollY > 8);
+addEventListener('scroll', markScrolled, { passive: true });
+markScrolled();
+const navLinks = $$('.desktop-nav a');
+if ('IntersectionObserver' in window) {
+  const sections = navLinks.map((a) => $(a.hash)).filter(Boolean);
+  const visible = new Map();
+  const spy = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) visible.set(entry.target.id, entry.isIntersecting);
+      const current = sections.find((section) => visible.get(section.id));
+      for (const a of navLinks) {
+        if (current && a.hash === '#' + current.id) a.setAttribute('aria-current', 'location');
+        else a.removeAttribute('aria-current');
+      }
+    },
+    { rootMargin: '-35% 0px -60% 0px' },
+  );
+  sections.forEach((section) => spy.observe(section));
+}
+
 const menu = $('.menu-toggle');
-menu.addEventListener('click', () => {
-  const expanded = menu.getAttribute('aria-expanded') !== 'true';
-  menu.setAttribute('aria-expanded', String(expanded));
-  menu.setAttribute('aria-label', expanded ? 'メニューを閉じる' : 'メニューを開く');
-  $('#mobile-nav').hidden = !expanded;
+const mobileNav = $('#mobile-nav');
+function setMenu(open) {
+  menu.setAttribute('aria-expanded', String(open));
+  menu.setAttribute('aria-label', open ? 'メニューを閉じる' : 'メニューを開く');
+  mobileNav.hidden = !open;
+}
+menu.addEventListener('click', () => setMenu(menu.getAttribute('aria-expanded') !== 'true'));
+$$('a', mobileNav).forEach((a) => a.addEventListener('click', () => setMenu(false)));
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !mobileNav.hidden) {
+    setMenu(false);
+    menu.focus();
+  }
 });
-$$('#mobile-nav a').forEach((a) =>
-  a.addEventListener('click', () => {
-    $('#mobile-nav').hidden = true;
-    menu.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-label', 'メニューを開く');
-  }),
-);
+addEventListener('click', (e) => {
+  if (!mobileNav.hidden && !header.contains(e.target)) setMenu(false);
+});
+matchMedia('(min-width: 1024px)').addEventListener('change', (e) => e.matches && setMenu(false));
+
 const gallery = $('.moment-gallery');
 function moveGallery(direction) {
-  const distance = $('.moment-card').getBoundingClientRect().width + 15;
+  const distance = $('.moment-card').getBoundingClientRect().width + 16;
   const end = gallery.scrollWidth - gallery.clientWidth;
   const current = gallery.scrollLeft;
   const target =
@@ -37,21 +69,21 @@ const updateGallery = () => {
   $('.gallery-next').hidden = !overflow;
 };
 new ResizeObserver(updateGallery).observe(gallery);
+
 $$('[data-close]').forEach((button) =>
   button.addEventListener('click', () => button.closest('dialog').close()),
 );
 $$('dialog').forEach((dialog) =>
   dialog.addEventListener('click', (e) => {
-    if (e.target === dialog) {
-      const bounds = dialog.getBoundingClientRect();
-      if (
-        e.clientX < bounds.left ||
-        e.clientX > bounds.right ||
-        e.clientY < bounds.top ||
-        e.clientY > bounds.bottom
-      )
-        dialog.close();
-    }
+    if (e.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (
+      e.clientX < bounds.left ||
+      e.clientX > bounds.right ||
+      e.clientY < bounds.top ||
+      e.clientY > bounds.bottom
+    )
+      dialog.close();
   }),
 );
 $$('[data-photo]').forEach((button) =>
@@ -62,6 +94,7 @@ $$('[data-photo]').forEach((button) =>
     $('#photo-dialog').showModal();
   }),
 );
+
 const cameraModes = {
   photo: ['写真', '見た景色を、撮影した画質のまま。対応端末ではHEIF・RAW・HDR写真にも対応します。'],
   video: [
@@ -100,22 +133,51 @@ $$('[role=tab]').forEach((button, index, buttons) => {
     buttons[next].focus();
   });
 });
+
 const signup = $('#signup-dialog');
 let cancellationToken = '';
-$$('[data-signup]').forEach((button) => button.addEventListener('click', () => signup.showModal()));
+function openSignup() {
+  setMenu(false);
+  signup.showModal();
+  if (!$('.dialog-form-view').hidden) $('#signup-email').focus();
+}
+$$('[data-signup]').forEach((button) => button.addEventListener('click', openSignup));
+// The closing form only carries the address into the full form; it never submits by itself.
+$('#closing-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = $('#closing-email');
+  if (!email.reportValidity()) return;
+  openSignup();
+  if ($('.dialog-form-view').hidden) return;
+  $('#signup-email').value = email.value.trim();
+  $('#signup-form input[name=platform]:checked').focus();
+});
+
+const failure = '受け付けできませんでした。時間をおいてお試しください。';
+const offline = '通信できませんでした。接続を確認して、もう一度お試しください。';
 async function sendRegistration(method, body) {
   const response = await fetch('/public/early-access', {
     method,
+    mode: 'same-origin',
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout?.(20000),
   });
-  const result = await response.json();
-  if (!response.ok)
-    throw new Error(
-      result?.error?.message || '受け付けできませんでした。時間をおいてお試しください。',
-    );
+  // A proxy error page is not JSON; never show a parser message to visitors.
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) {
+    const message = result?.error?.message;
+    throw new Error(typeof message === 'string' && message ? message : failure);
+  }
   return result;
 }
+const errorMessage = (error) =>
+  error instanceof TypeError || error?.name === 'TimeoutError' || error?.name === 'AbortError'
+    ? offline
+    : error?.message || failure;
 $('#signup-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.currentTarget,
@@ -126,24 +188,23 @@ $('#signup-form').addEventListener('submit', async (e) => {
   $('#signup-message').textContent = '登録しています…';
   try {
     const result = await sendRegistration('POST', {
-      email: data.get('email'),
+      email: String(data.get('email')).trim(),
       platform: data.get('platform'),
       consent: data.get('consent') === 'on',
       website: data.get('website'),
     });
-    if (!result.accepted || !/^[A-Za-z0-9_-]{43}$/.test(result.cancellationToken))
+    if (!result.accepted || !tokenPattern.test(result.cancellationToken))
       throw new Error('登録結果を確認できませんでした。時間をおいてお試しください。');
     cancellationToken = result.cancellationToken;
+    $('#signup-message').textContent = '';
     $('.dialog-form-view').hidden = true;
     $('.dialog-success-view').hidden = false;
     signup.setAttribute('aria-labelledby', 'signup-success-title');
     form.reset();
+    $('#closing-form').reset();
     $('#save-registration').focus();
   } catch (error) {
-    $('#signup-message').textContent =
-      error instanceof TypeError
-        ? '通信できませんでした。接続を確認して、もう一度お試しください。'
-        : error.message;
+    $('#signup-message').textContent = errorMessage(error);
   } finally {
     button.disabled = false;
   }
@@ -162,18 +223,21 @@ $('#save-registration').addEventListener('click', () => {
   a.click();
   setTimeout(() => URL.revokeObjectURL(blob), 30000);
 });
+
 let cancelToken = '';
 function openCancellation() {
   if (!location.hash.startsWith('#cancel=')) return;
   const value = location.hash.slice(8);
+  // Remove the secret from the address bar and history before anything else happens.
   history.replaceState(null, '', location.pathname + location.search);
-  if (!/^[A-Za-z0-9_-]{43}$/.test(value)) {
+  if (!tokenPattern.test(value)) {
     $('#cancel-message').textContent =
       '取り消しリンクが正しくありません。登録控えのリンク全体を確認してください。';
     $('#cancel-registration').disabled = true;
   } else {
     cancelToken = value;
     $('#cancel-registration').disabled = false;
+    $('#cancel-registration').hidden = false;
     $('#cancel-message').textContent = '';
   }
   $('#cancel-dialog').showModal();
@@ -193,10 +257,7 @@ $('#cancel-registration').addEventListener('click', async (e) => {
     button.hidden = true;
     cancelToken = '';
   } catch (error) {
-    $('#cancel-message').textContent =
-      error instanceof TypeError
-        ? '通信できませんでした。接続を確認して、もう一度お試しください。'
-        : error.message;
+    $('#cancel-message').textContent = errorMessage(error);
     button.disabled = false;
   }
 });

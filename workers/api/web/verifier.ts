@@ -1,3 +1,4 @@
+import './zod-jitless';
 import { verifyProof, type ProofTrust } from '../src/proof-verify';
 import { proofBundleSchema, type ProofBundle, type CaptureProof } from '@justtaken/contracts/proof';
 import {
@@ -8,6 +9,22 @@ import {
   type Checkpoint,
 } from '../src/anchor-crypto';
 import { AnchorNetworkError, checkLiveLog, checkConsistency } from '../src/anchor-client';
+// The page enforces Trusted Types; the hashing worker is the only script URL it creates.
+type ScriptURLPolicy = { createScriptURL(url: string): unknown };
+const scriptPolicy = (
+  globalThis as {
+    trustedTypes?: {
+      createPolicy(name: string, rules: { createScriptURL(url: string): string }): ScriptURLPolicy;
+    };
+  }
+).trustedTypes?.createPolicy('justtaken-verify', {
+  createScriptURL(url) {
+    if (url !== '/verify-hash.js') throw new TypeError('Unexpected script URL');
+    return url;
+  },
+});
+const hashWorkerURL = () =>
+  (scriptPolicy?.createScriptURL('/verify-hash.js') ?? '/verify-hash.js') as string;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const status = (id: string, text: string, state = '') => {
   $(id).textContent = text;
@@ -247,7 +264,7 @@ $('original').addEventListener('change', () => {
   const bar = $<HTMLProgressElement>('progress');
   bar.hidden = false;
   bar.value = 0;
-  worker = new Worker('/verify-hash.js');
+  worker = new Worker(hashWorkerURL());
   const task = worker;
   worker.onmessage = ({ data }) => {
     if (worker !== task || proof !== expected) return;
