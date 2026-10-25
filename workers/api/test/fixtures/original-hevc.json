@@ -1,0 +1,16 @@
+{
+  "bytes" : 878891,
+  "colorTransfer" : "sdr",
+  "durationMs" : 1000,
+  "fpsDenominator" : 1000,
+  "fpsNumerator" : 30000,
+  "hasAudio" : false,
+  "height" : 2160,
+  "id" : "original",
+  "mime" : "video\/mp4",
+  "role" : "original",
+  "rotationDegrees" : 90,
+  "videoBitDepth" : 8,
+  "videoCodec" : "hevc",
+  "width" : 3840
+}

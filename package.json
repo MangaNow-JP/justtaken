@@ -1,0 +1,44 @@
+{
+  "name": "justtaken",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "packages/*",
+    "native/*",
+    "workers/api"
+  ],
+  "scripts": {
+    "build:verifier": "node scripts/build-verifier.mjs",
+    "pretypecheck": "npm run build:verifier",
+    "pretest": "npm run build:verifier",
+    "dev": "npm run web --workspace @justtaken/mobile",
+    "ios": "npm run ios --workspace @justtaken/mobile",
+    "android": "npm run android --workspace @justtaken/mobile",
+    "api": "npm run dev --workspace @justtaken/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "node --import tsx --test packages/contracts/test/*.test.ts workers/api/test/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "build:web": "npm run build:web --workspace @justtaken/mobile",
+    "format": "prettier --write .",
+    "schema": "node --import tsx scripts/generate-schema.ts",
+    "test:integration": "node scripts/run-integration.mjs",
+    "setup:local": "node scripts/setup-local.mjs && wrangler d1 migrations apply HOME --local --config workers/api/wrangler.jsonc",
+    "build:proof-cli": "node scripts/build-proof-cli.mjs",
+    "verify:production": "node scripts/verify-production.mjs",
+    "deploy:production": "wrangler d1 migrations apply HOME --remote --config workers/api/wrangler.production.jsonc && wrangler deploy --config workers/api/wrangler.production.jsonc --strict"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "esbuild": "^0.28.2",
+    "prettier": "3.9.10",
+    "tsx": "4.20.6",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "overrides": {
+    "undici": "7.30.1"
+  }
+}

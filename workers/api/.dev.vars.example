@@ -1,0 +1,25 @@
+# Copy values for your NEW JustTaken application. Do not reuse another app's IDs.
+# Generate local receipt/media keys with: npm run setup:local
+APPLE_AUDIENCE=
+APPLE_TEAM_ID=
+APPLE_BUNDLE_ID=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+# Service-account JSON, single line; Play Integrity decode permission only.
+GOOGLE_SERVICE_ACCOUNT=
+ANDROID_PACKAGE=
+# Comma-separated SHA-256 certificate digests, URL-safe base64, from Play App Signing.
+ANDROID_CERTIFICATES=
+ANDROID_MIN_VERSION=1
+# Production: set these as Worker secrets, never EXPO_PUBLIC_*.
+RECEIPT_PRIVATE_JWK=
+RECEIPT_KEY_ID=
+MEDIA_SECRET=
+
+# Previous PUBLIC keys only; JWKS object with a keys array. Never reuse a kid.
+RECEIPT_PUBLIC_JWKS=
+# Compromised/revoked key IDs (comma-separated). Rotate signing key immediately.
+REVOKED_RECEIPT_KEY_IDS=
+# Public independent services; no API secret. Defaults in wrangler.jsonc.
+# Set disabled to explicitly leave new proofs unanchored (never report as verified).
+# PROOF_ANCHOR_PROVIDER=sigstore-v1

@@ -1,0 +1,8 @@
+node_modules
+apps/mobile/ios
+apps/mobile/android
+**/dist
+artifacts
+**/worker-configuration.d.ts
+docs/reference
+package-lock.json

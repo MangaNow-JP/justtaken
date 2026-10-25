@@ -1,0 +1,15 @@
+{
+  "name": "justtaken-test-only",
+  "main": "fixture-worker.ts",
+  "build": { "command": "node -e \"import(require.resolve('@justtaken/api/verifier-build'))\"" },
+  "compatibility_date": "2026-10-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      { "name": "AUTH", "class_name": "FixtureAuth" },
+      { "name": "CAPTURE", "class_name": "FixtureCapture" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FixtureAuth", "FixtureCapture"] }],
+}

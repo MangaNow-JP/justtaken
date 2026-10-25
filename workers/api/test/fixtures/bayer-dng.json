@@ -1,0 +1,11 @@
+{
+  "id": "original",
+  "role": "original",
+  "mime": "image/x-adobe-dng",
+  "width": 512,
+  "height": 384,
+  "orientation": 6,
+  "preservation": "camera-original",
+  "hasGainMap": false,
+  "bytes": 393770
+}

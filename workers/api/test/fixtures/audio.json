@@ -1,0 +1,13 @@
+{
+  "bytes" : 34433,
+  "durationMs" : 2000,
+  "fpsDenominator" : 1,
+  "fpsNumerator" : 30,
+  "hasAudio" : true,
+  "height" : 96,
+  "id" : "original",
+  "mime" : "video\/mp4",
+  "role" : "original",
+  "videoCodec" : "h264",
+  "width" : 64
+}

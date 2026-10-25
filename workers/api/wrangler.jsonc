@@ -1,0 +1,72 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "justtaken-api-dev",
+  "main": "src/index.ts",
+  "build": {
+    "command": "node -e \"import(require.resolve('@justtaken/api/verifier-build'))\"",
+    "watch_dir": [
+      "web",
+      "src/proof-verify.ts",
+      "src/anchor-crypto.ts",
+      "src/anchor-client.ts",
+      "src/anchor-trust.ts",
+      "../../packages/contracts/src",
+    ],
+  },
+  "compatibility_date": "2026-10-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "run_worker_first": [
+      "/v1/*",
+      "/public/*",
+      "/.well-known/*",
+      "/verify",
+      "/verify.js",
+      "/verify-hash.js",
+      "/health",
+    ],
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "PROOF_ANCHOR_PROVIDER": "sigstore-v1",
+    "API_ORIGIN": "http://localhost:8787",
+    "APP_RETURN_URL": "justtaken-dev://auth",
+    "ALLOWED_ORIGINS": "http://localhost:8081",
+  },
+  "d1_databases": [
+    {
+      "binding": "HOME",
+      "database_name": "justtaken-home-dev",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations/home",
+    },
+  ],
+  "r2_buckets": [
+    { "binding": "STAGING", "bucket_name": "justtaken-staging-dev" },
+    { "binding": "ORIGINALS", "bucket_name": "justtaken-originals-dev" },
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "AUTH", "class_name": "AuthSession" },
+      { "name": "CAPTURE", "class_name": "CaptureSecurity" },
+    ],
+  },
+  "ratelimits": [
+    { "name": "REQUEST_LIMIT", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } },
+    {
+      "name": "EARLY_ACCESS_LIMIT",
+      "namespace_id": "1004",
+      "simple": { "limit": 6, "period": 60 },
+    },
+  ],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AuthSession", "CaptureSecurity"] }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+}

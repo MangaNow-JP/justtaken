@@ -1,0 +1,16 @@
+apply plugin: 'com.android.library'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'app.justtaken.capture'
+version = '0.1.0'
+android {
+  namespace 'app.justtaken.capture'
+  defaultConfig { minSdkVersion 31 }
+}
+dependencies {
+  implementation 'com.google.android.play:integrity:1.6.0'
+  implementation 'androidx.camera:camera-camera2:1.6.2'
+  implementation 'androidx.camera:camera-lifecycle:1.6.2'
+  implementation 'androidx.camera:camera-view:1.6.2'
+  implementation 'androidx.camera:camera-video:1.6.2'
+}

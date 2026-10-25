@@ -1,0 +1,14 @@
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "x": "25LLXNk8ssffQr-_VjyVKqIV2zRP11qwoj-QAUk2CDM",
+      "y": "E3oS_j9Pxjfbyq0yhmOrDUnAX-ImsDqVmMpjAsB6ne8",
+      "crv": "P-256",
+      "kid": "production-2026-10-25-3b69850cb591",
+      "alg": "ES256",
+      "use": "sig"
+    }
+  ],
+  "revokedKids": []
+}

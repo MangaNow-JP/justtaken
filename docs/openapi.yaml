@@ -1,0 +1,1239 @@
+openapi: 3.1.0
+info:
+  title: JustTaken capture and publication API
+  version: 0.3.0
+  description: ローカル実装。外部アプリ登録と本番前検証は別工程。設定未完了の認証はfail closed。
+servers:
+  - url: http://localhost:8787
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+paths:
+  /health:
+    get:
+      summary: 稼働状態と設定済み機能
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/policy:
+    get:
+      summary: 撮影・公開ポリシーと利用可能なログイン方法
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /.well-known/capture-jwks.json:
+    get:
+      summary: 現在の検証票署名公開鍵（秘密値を含まない）
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/auth/challenge:
+    post:
+      summary: ログインチャレンジ発行
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  enum:
+                    - apple
+                    - google
+                codeChallenge:
+                  type: string
+                  description: Googleでは必須。native PKCE verifierのS256
+  /v1/auth/google/callback:
+    get:
+      summary: Google認可codeの交換とアプリへのhandoff
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/auth/exchange:
+    post:
+      summary: Apple tokenまたはGoogle handoff codeの交換
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  enum:
+                    - apple
+                    - google
+                challengeId:
+                  type: string
+                idToken:
+                  type: string
+                code:
+                  type: string
+                verifier:
+                  type: string
+  /v1/auth/refresh:
+    post:
+      summary: 端末のrefresh rotation。再利用時はtoken family失効
+      security: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+  /v1/auth/logout:
+    post:
+      summary: この端末からログアウト
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/auth/logout-all:
+    post:
+      summary: account epoch更新で全端末失効
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/me:
+    get:
+      summary: プロフィールと共有容量
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/installations:
+    post:
+      summary: 端末登録チャレンジ発行
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platform:
+                  enum:
+                    - ios
+                    - android
+  /v1/installations/{installationId}/attest:
+    post:
+      summary: App Attest / Integrity端末登録
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proof:
+                  type: object
+  /v1/capture-sessions:
+    post:
+      summary: 5分有効のserver nonce発行
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                installationId:
+                  type: string
+  /v1/installations/{installationId}/captures/{captureId}/commit:
+    post:
+      summary: native manifestと証明の確定。再送時は保存済みdigestを先に確認
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                manifest:
+                  $ref: ../packages/contracts/manifest.schema.json
+                proof:
+                  type: object
+  /v1/installations/{installationId}/captures/{captureId}/assets/{assetId}:
+    put:
+      summary: 24時間以内のJPEG/HEIF/DNG/MP4固定長upload。8 MiB超のnative原画は分割送信を使う
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+  /v1/installations/{installationId}/captures/{captureId}/complete:
+    post:
+      summary: 写真/動画原本とthumbnail/posterを同一stream検査しreceipt発行
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/installations/{installationId}/captures/{captureId}:
+    get:
+      summary: 撮影state/期限/確認日時
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: 撮影を終了し容量・保存物を解放
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/posts:
+    post:
+      summary: capture単位の投稿保存。審査完了まではPROCESSING
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                installationId:
+                  type: string
+                captureId:
+                  type: string
+                caption:
+                  type: string
+                  description: 500書記素まで
+                visibility:
+                  enum:
+                    - private
+                    - followers
+                    - public
+  /v1/feed:
+    get:
+      summary: 閲覧可能な投稿のcursor pagination。scope=mineで自分の投稿
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+  /v1/posts/{postId}:
+    get:
+      summary: 現在のACLで投稿取得
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: 投稿を削除し既存grantも無効化
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/posts/{postId}/publish:
+    post:
+      summary: VERIFIEDと審査許可と現在のアカウント状態を再確認
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/posts/{postId}/record:
+    get:
+      summary: manifestと署名検証票（投稿と同じACL）
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/posts/{postId}/media-grants:
+    post:
+      summary: 閲覧者・投稿revisionを束縛した120秒grant
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '201':
+          description: 作成成功
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/posts/{postId}/media/{assetId}:
+    get:
+      summary: grantと現在のACLを照合。単一Range対応
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+    head:
+      summary: GETと同じ認証・ACL・grant検査
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功。POST作成時は201、範囲応答は206
+        '206':
+          description: メディアの部分応答
+        '400':
+          description: 形式不正
+        '401':
+          description: 認証失効/未認証
+        '403':
+          description: 証明または権限拒否
+        '404':
+          description: 存在しない、または閲覧不可
+        '409':
+          description: 状態・再送・容量の競合
+        '422':
+          description: メディア不一致
+        '429':
+          description: 頻度制限
+        '503':
+          description: 設定未完了または一時障害
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+  /v1/installations/{installationId}/captures/{captureId}/assets/{assetId}/multipart:
+    post:
+      summary: 原画の分割アップロードを開始/再開。受領済みpartを返す
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - original
+              - thumbnail
+              - poster
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - partBytes
+                  - totalParts
+                  - uploadedParts
+                  - complete
+                properties:
+                  partBytes:
+                    type: integer
+                    const: 8388608
+                  totalParts:
+                    type: integer
+                    minimum: 1
+                    maximum: 64
+                  uploadedParts:
+                    type: array
+                    items:
+                      type: integer
+                      minimum: 1
+                      maximum: 64
+                  complete:
+                    type: boolean
+        '400':
+          description: サイズ/形式不正
+        '401':
+          description: 未認証
+        '404':
+          description: 存在しない/他アカウント
+        '409':
+          description: 期限/キャンセル/未完了/part競合
+        '422':
+          description: hash不一致
+  /v1/installations/{installationId}/captures/{captureId}/assets/{assetId}/parts/{partNumber}:
+    put:
+      summary: 8 MiB以下のpartをSHA-256照合して送信
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - original
+              - thumbnail
+              - poster
+        - name: partNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 64
+        - name: X-Chunk-SHA256
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 8388608
+      responses:
+        '200':
+          description: 成功
+        '400':
+          description: サイズ/形式不正
+        '401':
+          description: 未認証
+        '404':
+          description: 存在しない/他アカウント
+        '409':
+          description: 期限/キャンセル/未完了/part競合
+        '422':
+          description: hash不一致
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+  /v1/installations/{installationId}/captures/{captureId}/assets/{assetId}/uploaded:
+    post:
+      summary: 受領済みpartを組み立てる。撮影認証は別のcompleteで実行
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: installationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: captureId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - original
+              - thumbnail
+              - poster
+      responses:
+        '200':
+          description: 成功
+        '400':
+          description: サイズ/形式不正
+        '401':
+          description: 未認証
+        '404':
+          description: 存在しない/他アカウント
+        '409':
+          description: 期限/キャンセル/未完了/part競合
+        '422':
+          description: hash不一致
+  /verify:
+    get:
+      summary: 撮影証明の受け手用検証画面（原本は端末内で照合）
+      security: []
+      responses:
+        '200':
+          description: HTML。署名・ファイル一致・共有の現在状態を分けて表示
+  /v1/proofs:
+    get:
+      summary: 自分の撮影証明一覧（SNS投稿とは独立）
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: before
+          in: query
+          schema: { type: string, pattern: '^[1-9][0-9]{0,14}$' }
+      responses:
+        '200':
+          description: proofs（最大20件、proof/available/activeShares/anchoring）とnextCursor。anchoring.stateはanchored/pending/not-configured/not-requested/mismatch
+        '401':
+          description: 未認証
+    post:
+      summary: VERIFIEDのcaptureから再送可能な署名付き証明を発行
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [installationId, captureId]
+              properties:
+                installationId: { type: string }
+                captureId: { type: string }
+      responses:
+        '201':
+          description: proof本文・bundle・anchoring。bundleはformat=justtaken-proof-v1、certificate=ES256 JWS、取得済みならanchors（RFC3161応答・nonce・Rekor収録証拠）。同一captureの再送は同じ証明。外部障害時はpendingで返す
+        '409':
+          description: 未照合・削除済みcapture
+  /v1/proofs/{proofId}:
+    parameters:
+      - name: proofId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: 所有者の署名付き証明を取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          {
+            description: proof・portable bundle・anchoring。第三者証拠がある場合は署名と収録を再検証,
+          }
+        '404': { description: 他アカウントまたは不存在 }
+        '409': { description: 原本が削除済み }
+    delete:
+      summary: 原本・関連投稿を削除し共有停止（証明の削除記録は保持）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: 再送も成功。既に配布済みのコピーは削除しない }
+        '404': { description: 他アカウントまたは不存在 }
+  /v1/proofs/{proofId}/anchor:
+    parameters:
+      - name: proofId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: 第三者時刻認証・公開ログの登録を要求／再試行（保留のバックオフを尊重）
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          {
+            description: proof・bundle・anchoring。pendingは完了ではない。完了済み要求の再送は外部再登録しない,
+          }
+        '401': { description: 未認証 }
+        '404': { description: 他アカウントまたは不存在 }
+        '409': { description: 原本削除または撮影記録不一致 }
+  /v1/proofs/{proofId}/shares:
+    parameters:
+      - name: proofId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: 原本閲覧権限を含まない証明共有リンクを発行
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days: { type: integer, enum: [1, 7, 30], default: 7 }
+      responses:
+        '201':
+          { description: url（fragmentにcapability）、expiresAt（ミリ秒）。有効リンクは最大20件 }
+        '429': { description: 有効リンク数超過 }
+    delete:
+      summary: この証明の既存共有リンクをすべて停止
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: revoked=true。保存済み署名の数学的有効性は変わらない }
+  /v1/proofs/{proofId}/original:
+    parameters:
+      - name: proofId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: 原本を元の形式で所有者に書き出す
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: 元ファイルのバイト列とMIME。private/no-store、attachment }
+        '401': { description: 未認証。共有リンクのみでは利用不可 }
+        '404': { description: 他アカウントまたは不存在 }
+    head:
+      summary: 所有者の原本のヘッダーを取得
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: GETと同じヘッダー、bodyなし }
+  /public/proof-shares/{shareId}:
+    post:
+      summary: capabilityによる証明取得。原本アップロード・原本取得ではない
+      security: []
+      parameters:
+        - name: shareId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: X-Proof-Token
+          in: header
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+      responses:
+        '200':
+          { description: bundle、expiresAt、checkedAt。期限・失効・所有者・capture・署名を確認 }
+        '404': { description: 不正・失効・期限切れリンク }
+        '409': { description: 原本削除または撮影記録不一致 }
+        '410': { description: 所有者アカウント利用停止 }

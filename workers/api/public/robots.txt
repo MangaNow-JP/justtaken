@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /public/
+Disallow: /v1/
+Sitemap: https://justtaken.app/sitemap.xml

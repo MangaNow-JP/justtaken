@@ -1,0 +1,26 @@
+{
+  "name": "@justtaken/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.web.json",
+    "types": "wrangler types",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@justtaken/contracts": "0.1.0",
+    "@noble/hashes": "^1.8.0",
+    "asn1js": "^3.1.0",
+    "cbor": "^10.0.12",
+    "jose": "^6.2.13",
+    "node-app-attest": "^1.0.1",
+    "pkijs": "^3.4.3"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  },
+  "exports": {
+    "./verifier-build": "./build-verifier.mjs"
+  }
+}

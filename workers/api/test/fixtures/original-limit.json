@@ -1,0 +1,16 @@
+{
+  "bytes" : 966428,
+  "colorTransfer" : "sdr",
+  "durationMs" : 59000,
+  "fpsDenominator" : 1000,
+  "fpsNumerator" : 30000,
+  "hasAudio" : true,
+  "height" : 64,
+  "id" : "original",
+  "mime" : "video\/mp4",
+  "role" : "original",
+  "rotationDegrees" : 90,
+  "videoBitDepth" : 8,
+  "videoCodec" : "h264",
+  "width" : 96
+}

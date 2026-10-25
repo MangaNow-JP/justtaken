@@ -1,0 +1,29 @@
+node_modules/
+.expo/
+dist/
+build/
+.wrangler/
+.env
+.env.*
+!.env.example
+!.env.production.example
+.dev.vars*
+!*.example
+.DS_Store
+apps/mobile/ios/
+apps/mobile/android/
+*.xcuserstate
+*.log
+artifacts/
+workers/api/src/generated/
+
+# Local signing credentials and unpublished research notes.
+*.p8
+*.p12
+*.key
+*.jks
+*.mobileprovision
+docs/invention-notes.md
+
+# Temporary files left by macOS image encoders.
+workers/api/test/fixtures/.*.heic-*
