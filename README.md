@@ -8,7 +8,7 @@ React Native / ExpoによるiOS・Androidアプリ。現在は**ログイン →
 
 本番の[LP](https://justtaken.app/)（先行登録受付付き）、[撮影証明ページ](https://justtaken.app/verify)と[APIヘルスチェック](https://justtaken.app/health)を公開済み。専用DB・非公開R2・本番署名鍵・外部認証再試行cronの設定と更新手順は [Cloudflare実環境](docs/cloudflare-production.md) を参照してください。
 
-[LPの構成・先行登録の運用](docs/landing-page.md)も参照してください。
+[LPの構成・先行登録の運用](docs/landing-page.md)も参照してください。セキュリティヘッダー・CSP・キャッシュの方針は [Web配信のセキュリティ](docs/web-security.md) にまとめています。
 
 ## 起動
 

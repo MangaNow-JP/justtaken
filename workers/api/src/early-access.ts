@@ -4,6 +4,10 @@ import type { Bindings } from './types';
 export const EARLY_ACCESS_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
 // Bundle: terms 2026-10-25.1 and privacy 2026-10-25.2. Existing registrations retain their version.
 const CONSENT_VERSION = '2026-10-25.2';
+// The browser's own type=email grammar, with a dotted domain. Double quotes, commas, semicolons,
+// spaces and control characters never reach storage, so a mailer cannot gain extra recipients.
+const EMAIL =
+  /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 export async function earlyAccessRoutes(
   request: Request,
@@ -42,11 +46,7 @@ export async function earlyAccessRoutes(
   if (typeof data.email !== 'string')
     fail(400, 'INVALID_EMAIL', 'メールアドレスを確認してください。');
   const email = data.email.trim().toLowerCase();
-  if (
-    email.length > 254 ||
-    !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) ||
-    /[\r\n\x00-\x1f]/.test(email)
-  )
+  if (email.length > 254 || !EMAIL.test(email))
     fail(400, 'INVALID_EMAIL', 'メールアドレスを確認してください。');
   if (data.consent !== true)
     fail(400, 'CONSENT_REQUIRED', '公開案内の受け取りに同意してください。');
