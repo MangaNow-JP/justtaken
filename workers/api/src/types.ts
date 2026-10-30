@@ -13,6 +13,10 @@ export interface Bindings {
   APPLE_AUDIENCE?: string;
   APPLE_TEAM_ID?: string;
   APPLE_BUNDLE_ID?: string;
+  APPLE_KEY_ID?: string;
+  APPLE_PRIVATE_KEY?: string;
+  PROVIDER_TOKEN_KEY?: string;
+  MODERATOR_USER_IDS?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_SERVICE_ACCOUNT?: string;

@@ -53,6 +53,8 @@ export class CaptureSecurity extends DurableObject<Bindings> {
     );
   }
   private owner(userId: string): Installation {
+    if (this.records.get('account-deleted'))
+      fail(410, 'ACCOUNT_DELETED', 'このアカウントは削除されています。');
     const i = this.records.get<Installation>('installation');
     if (!i || i.userId !== userId) fail(404, 'INSTALLATION_NOT_FOUND', '端末を登録してください。');
     return i!;
@@ -70,6 +72,8 @@ export class CaptureSecurity extends DurableObject<Bindings> {
   }
   create(id: string, userId: string, platform: 'ios' | 'android') {
     return rpc(async () => {
+      if (this.records.get('account-deleted'))
+        fail(410, 'ACCOUNT_DELETED', 'このアカウントは削除されています。');
       requireValue(integrityConfigured(this.env, platform));
       if (this.records.get('installation'))
         fail(409, 'INSTALLATION_EXISTS', '端末を登録し直してください。');
@@ -175,9 +179,9 @@ export class CaptureSecurity extends DurableObject<Bindings> {
       const size = manifest.assets.reduce((n, a) => n + a.bytes, 0);
       try {
         await this.env.HOME.prepare(
-          'INSERT INTO quota_reservations(capture_id,user_id,bytes,expires_at) VALUES(?,?,?,?) ON CONFLICT(capture_id) DO NOTHING',
+          "INSERT INTO quota_reservations(capture_id,user_id,bytes,expires_at) SELECT ?,user_id,?,? FROM profiles WHERE user_id=? AND status='ACTIVE' ON CONFLICT(capture_id) DO NOTHING",
         )
-          .bind(id, userId, size, Date.now() + capturePolicy.uploadWindowMs)
+          .bind(id, size, Date.now() + capturePolicy.uploadWindowMs, userId)
           .run();
       } catch {
         fail(409, 'QUOTA_EXCEEDED', '保存枠がいっぱいです。不要な投稿を削除してください。');
@@ -261,89 +265,110 @@ export class CaptureSecurity extends DurableObject<Bindings> {
     return rpc(() => this.uploads.recordPart(user, id, asset, number, digest, part));
   }
   finishMultipart(user: string, id: string, asset: string) {
-    return rpc(() => this.uploads.finish(user, id, asset));
+    return rpc(async () => {
+      const { key } = this.assetInfo(user, id, asset);
+      try {
+        return await this.uploads.finish(user, id, asset);
+      } finally {
+        // R2 complete may have finished after the deletion sweep aborted the upload.
+        if (this.records.get('account-deleted')) await this.env.STAGING.delete(key);
+      }
+    });
   }
   complete(userId: string, id: string) {
     return rpc(async () => {
       const s = this.capture(userId, id);
-      if (s.state === 'VERIFIED') {
-        await this.project(s);
-        return this.publicStatus(s);
-      }
       try {
-        assertUploadWindow(s, Date.now());
-      } catch {
-        fail(409, 'UPLOAD_EXPIRED', 'アップロードの有効時間が過ぎました。');
-      }
-      for (const a of s.manifest!.assets)
-        await freezeAsset(
-          this.env.STAGING,
-          this.env.ORIGINALS,
-          stagingKey(s.installationId, id, a.id),
-          originalKey(s.installationId, id, a),
-          a,
-        );
-      const candidate = this.records.atomic(() => {
-        const current = this.capture(userId, id);
-        if (current.state === 'VERIFIED') return current;
-        try {
-          assertUploadWindow(current, Date.now());
-        } catch {
-          fail(409, 'CAPTURE_CANCELLED', '撮影記録の処理は終了しています。');
+        if (s.state === 'VERIFIED') {
+          await this.project(s);
+          return this.publicStatus(s);
         }
-        const verifiedAt = current.verifiedAt ?? new Date().toISOString();
-        const payload = JSON.stringify({
-          version: 1,
-          captureId: id,
-          installationId: s.installationId,
-          manifestDigest: s.digest,
-          clientCapturedAt: s.manifest!.clientCapturedAt,
-          serverCommittedAt: s.committedAt,
-          serverVerifiedAt: verifiedAt,
-          environment: this.active(userId).environment,
-          assets: s.manifest!.assets,
-          scope: 'capture-record-and-file-consistency',
+        try {
+          assertUploadWindow(s, Date.now());
+        } catch {
+          fail(409, 'UPLOAD_EXPIRED', 'アップロードの有効時間が過ぎました。');
+        }
+        for (const a of s.manifest!.assets)
+          await freezeAsset(
+            this.env.STAGING,
+            this.env.ORIGINALS,
+            stagingKey(s.installationId, id, a.id),
+            originalKey(s.installationId, id, a),
+            a,
+          );
+        const candidate = this.records.atomic(() => {
+          const current = this.capture(userId, id);
+          if (current.state === 'VERIFIED') return current;
+          try {
+            assertUploadWindow(current, Date.now());
+          } catch {
+            fail(409, 'CAPTURE_CANCELLED', '撮影記録の処理は終了しています。');
+          }
+          const verifiedAt = current.verifiedAt ?? new Date().toISOString();
+          const payload = JSON.stringify({
+            version: 1,
+            captureId: id,
+            installationId: s.installationId,
+            manifestDigest: s.digest,
+            clientCapturedAt: s.manifest!.clientCapturedAt,
+            serverCommittedAt: s.committedAt,
+            serverVerifiedAt: verifiedAt,
+            environment: this.active(userId).environment,
+            assets: s.manifest!.assets,
+            scope: 'capture-record-and-file-consistency',
+          });
+          const next = {
+            ...current,
+            verifiedAt,
+            receiptPayload: current.receiptPayload ?? payload,
+          };
+          this.records.put('capture:' + id, next);
+          return next;
         });
-        const next = { ...current, verifiedAt, receiptPayload: current.receiptPayload ?? payload };
-        this.records.put('capture:' + id, next);
-        return next;
-      });
-      if (candidate.state === 'VERIFIED') return this.publicStatus(candidate);
-      requireValue(this.env.RECEIPT_PRIVATE_JWK && this.env.RECEIPT_KEY_ID);
-      const key = await importJWK(JSON.parse(this.env.RECEIPT_PRIVATE_JWK!), 'ES256');
-      const receipt = await new CompactSign(new TextEncoder().encode(candidate.receiptPayload!))
-        .setProtectedHeader({
-          alg: 'ES256',
-          kid: this.env.RECEIPT_KEY_ID,
-          typ: 'justtaken-capture+jws',
-        })
-        .sign(key);
-      const verified = this.records.atomic(() => {
-        const current = this.capture(userId, id);
-        if (current.state === 'VERIFIED') return current;
-        try {
-          assertUploadWindow(current, Date.now());
-        } catch {
-          fail(409, 'CAPTURE_CANCELLED', '撮影記録の処理は終了しています。');
-        }
-        const next: StoredCapture = { ...current, state: 'VERIFIED', receipt };
-        this.records.put('capture:' + id, next);
-        this.records.put('outbox:' + id, { userId, id });
-        return next;
-      });
-      await this.project(verified);
-      await this.schedule();
-      return this.publicStatus(verified);
+        if (candidate.state === 'VERIFIED') return this.publicStatus(candidate);
+        requireValue(this.env.RECEIPT_PRIVATE_JWK && this.env.RECEIPT_KEY_ID);
+        const key = await importJWK(JSON.parse(this.env.RECEIPT_PRIVATE_JWK!), 'ES256');
+        const receipt = await new CompactSign(new TextEncoder().encode(candidate.receiptPayload!))
+          .setProtectedHeader({
+            alg: 'ES256',
+            kid: this.env.RECEIPT_KEY_ID,
+            typ: 'justtaken-capture+jws',
+          })
+          .sign(key);
+        const verified = this.records.atomic(() => {
+          const current = this.capture(userId, id);
+          if (current.state === 'VERIFIED') return current;
+          try {
+            assertUploadWindow(current, Date.now());
+          } catch {
+            fail(409, 'CAPTURE_CANCELLED', '撮影記録の処理は終了しています。');
+          }
+          const next: StoredCapture = { ...current, state: 'VERIFIED', receipt };
+          this.records.put('capture:' + id, next);
+          this.records.put('outbox:' + id, { userId, id });
+          return next;
+        });
+        await this.project(verified);
+        await this.schedule();
+        return this.publicStatus(verified);
+      } finally {
+        // External R2/crypto awaits may interleave with purgeAccount. The durable marker wins.
+        if (this.records.get('account-deleted') && s.manifest)
+          for (const a of s.manifest.assets) {
+            await this.env.STAGING.delete(stagingKey(s.installationId, id, a.id));
+            await this.env.ORIGINALS.delete(originalKey(s.installationId, id, a));
+          }
+      }
     });
   }
   private async project(s: StoredCapture) {
     await this.env.HOME.batch([
       this.env.HOME.prepare(
-        "UPDATE quota_reservations SET state='USED' WHERE capture_id=? AND state='RESERVED'",
+        "UPDATE quota_reservations SET state='USED' WHERE capture_id=? AND state='RESERVED' AND EXISTS(SELECT 1 FROM profiles WHERE user_id=quota_reservations.user_id AND status='ACTIVE')",
       ).bind(s.id),
       this.env.HOME.prepare(
-        "INSERT INTO capture_projection(capture_id,installation_id,revision,state,server_verified_at) VALUES(?,?,1,'VERIFIED',?) ON CONFLICT(capture_id) DO NOTHING",
-      ).bind(s.id, s.installationId, s.verifiedAt!),
+        "INSERT INTO capture_projection(capture_id,installation_id,revision,state,server_verified_at) SELECT ?,?,1,'VERIFIED',? FROM profiles WHERE user_id=? AND status='ACTIVE' ON CONFLICT(capture_id) DO NOTHING",
+      ).bind(s.id, s.installationId, s.verifiedAt!, s.userId),
     ]);
     this.records.delete('outbox:' + s.id);
   }
@@ -407,6 +432,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
     ]);
   }
   private async schedule() {
+    if (this.records.get('account-deleted')) return;
     const now = Date.now();
     let next = now + 86400_000;
     for (const row of this.records.all<StoredCapture>('capture:'))
@@ -418,6 +444,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
     await this.ctx.storage.setAlarm(Math.max(now + 1000, next));
   }
   async alarm() {
+    if (this.records.get('account-deleted')) return;
     const i = this.records.get<Installation>('installation');
     if (!i) return;
     if (!i.active) {
@@ -425,6 +452,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
       return;
     }
     for (const event of this.records.all<{ userId: string; id: string }>('outbox:')) {
+      if (this.records.get('account-deleted')) return;
       const s = this.capture(event.value.userId, event.value.id);
       if (s.state === 'VERIFIED') await this.project(s);
       else this.records.delete(event.key);
@@ -436,6 +464,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
       until: number;
       nextAt?: number;
     }>('cleanup:')) {
+      if (this.records.get('account-deleted')) return;
       if ((cleanup.value.nextAt ?? 0) > Date.now()) {
         pending = true;
         continue;
@@ -448,6 +477,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
           await this.env.STAGING.delete(stagingKey(s.installationId, s.id, a.id));
           await this.env.ORIGINALS.delete(originalKey(s.installationId, s.id, a));
         }
+      if (this.records.get('account-deleted')) return;
       if (cleanup.value.until <= Date.now()) this.records.delete(cleanup.key);
       else {
         this.records.put(cleanup.key, { ...cleanup.value, nextAt: cleanup.value.until });
@@ -455,6 +485,7 @@ export class CaptureSecurity extends DurableObject<Bindings> {
       }
     }
     for (const row of this.records.all<StoredCapture>('capture:')) {
+      if (this.records.get('account-deleted')) return;
       const s = row.value;
       if (['ISSUED', 'COMMITTED', 'UPLOADING'].includes(s.state)) {
         if ((s.uploadExpiresAt ?? s.commitExpiresAt) <= Date.now()) {
@@ -479,5 +510,29 @@ export class CaptureSecurity extends DurableObject<Bindings> {
       }
     }
     if (pending || this.records.all('outbox:').length) await this.schedule();
+  }
+  purgeAccount(userId: string) {
+    return rpc(async () => {
+      const installation = this.records.get<Installation>('installation');
+      if (installation && installation.userId !== userId)
+        fail(409, 'OWNERSHIP_MISMATCH', 'アカウント情報が一致しません。');
+      // Persist the barrier before any external await. Keep multipart IDs until abort succeeds.
+      this.records.put('account-deleted', true);
+      for (const row of this.records.all<StoredCapture>('capture:').slice(0, 50)) {
+        await this.uploads.abort(row.value.id);
+        this.records.atomic(() => {
+          this.records.delete(row.key);
+          this.records.delete('outbox:' + row.value.id);
+          this.records.delete('cleanup:' + row.value.id);
+        });
+      }
+      if (this.records.all('capture:').length) return { complete: false };
+      this.records.atomic(() => {
+        for (const row of this.records.all(''))
+          if (row.key !== 'account-deleted') this.records.delete(row.key);
+      });
+      await this.ctx.storage.deleteAlarm();
+      return { complete: true };
+    });
   }
 }

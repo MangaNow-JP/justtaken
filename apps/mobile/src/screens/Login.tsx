@@ -1,19 +1,35 @@
 import { useState } from 'react';
-import { Platform, Text, View, StyleSheet } from 'react-native';
+import { Platform, Text, View, StyleSheet, Pressable } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Button, Icon } from '../components/UI';
 import { useAuth, signIn } from '../services/auth';
 import { colors as c } from '../theme';
+import { LegalLinks } from '../components/LegalLinks';
 export function Login({ onSuccess }: { onSuccess: () => void }) {
   const { policy, connectionError, reload } = useAuth();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   const native = Platform.OS !== 'web';
+  const [agreed, setAgreed] = useState(false);
+  const [adult, setAdult] = useState(false);
   async function login(provider: 'apple' | 'google') {
+    if (!agreed) {
+      setError('利用規約とプライバシーポリシーを確認し、同意してください。');
+      return;
+    }
+    if (!adult || !policy?.community) {
+      setError('18歳以上であることをご自身で確認してください。');
+      return;
+    }
     setError('');
     setBusy(true);
     try {
-      await signIn(provider);
+      await signIn(provider, {
+        termsVersion: policy.community.termsVersion,
+        privacyVersion: policy.community.privacyVersion,
+        ageConfirmed18Plus: true,
+      });
+      await reload();
       onSuccess();
     } catch (e) {
       if ((e as { code?: string }).code !== 'ERR_REQUEST_CANCELED')
@@ -42,6 +58,29 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
         <Text style={s.featureText}>共有する相手を自分で選べる</Text>
       </View>
       <View style={s.actions}>
+        <LegalLinks />
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: agreed }}
+          onPress={() => setAgreed(!agreed)}
+          style={{ flexDirection: 'row', gap: 10, paddingVertical: 12 }}
+        >
+          <Icon name={agreed ? 'check-circle' : 'circle'} size={22} />
+          <Text style={{ flex: 1, color: c.ink, lineHeight: 22 }}>
+            利用規約・プライバシーポリシーに同意します。不適切な投稿や嫌がらせは禁止されています。
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: adult }}
+          onPress={() => setAdult(!adult)}
+          style={{ flexDirection: 'row', gap: 10, paddingVertical: 12 }}
+        >
+          <Icon name={adult ? 'check-circle' : 'circle'} size={22} />
+          <Text style={{ flex: 1, color: c.ink, lineHeight: 22 }}>
+            私は18歳以上です（自己申告）。
+          </Text>
+        </Pressable>
         {native && Platform.OS === 'ios' && policy?.providers.apple ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
@@ -58,7 +97,7 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
           </Button>
         )}
         <Button
-          disabled={!native || !policy?.providers.google || busy}
+          disabled={!native || !policy?.providers.google || busy || !agreed || !adult}
           onPress={() => void login('google')}
         >
           Googleでログイン

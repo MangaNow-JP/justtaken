@@ -1,5 +1,9 @@
 import { LocationPreferenceProvider } from './src/preferences/LocationPreference';
 import { LocationSettings } from './src/components/LocationSettings';
+import { AccountSettings } from './src/components/AccountSettings';
+import { CommunityConsent } from './src/components/CommunityConsent';
+import { Moderation } from './src/screens/Moderation';
+import { LegalLinks } from './src/components/LegalLinks';
 import { CaptureLocationRecord } from './src/components/CaptureLocationRecord';
 import { useEffect, useState } from 'react';
 import {
@@ -56,9 +60,9 @@ import {
 type Tab = 'home' | 'explore' | 'camera' | 'notifications' | 'profile';
 type Sheet =
   | { kind: 'record' | 'comments' | 'more'; post: DemoPost }
-  | { kind: 'about' | 'settings' | 'saved' | 'login' | 'posts' | 'proofs' }
+  | { kind: 'about' | 'settings' | 'saved' | 'login' | 'posts' | 'proofs' | 'moderation' }
   | { kind: 'compose'; capture: LocalCapture };
-type DraftNote = { caption: string; visibility: 'followers' | 'private' };
+type DraftNote = { caption: string; visibility: 'followers' | 'private' | 'public' };
 const tabs: { id: Tab; icon: IconName; label: string }[] = [
   { id: 'home', icon: 'home', label: 'ホーム' },
   { id: 'explore', icon: 'search', label: '探す' },
@@ -81,7 +85,7 @@ export default function App() {
 }
 function JustTaken() {
   const { width, height } = useWindowDimensions();
-  const { profile, policy } = useAuth();
+  const { profile, policy, consentRequired } = useAuth();
   const [postRevision, setPostRevision] = useState(0);
   const [sending, setSending] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase | null>(null);
@@ -101,7 +105,7 @@ function JustTaken() {
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState<Record<string, string[]>>({});
   const [caption, setCaption] = useState('');
-  const [visibility, setVisibility] = useState<'followers' | 'private'>('followers');
+  const [visibility, setVisibility] = useState<'followers' | 'private' | 'public'>('private');
   useEffect(() => {
     AsyncStorage.getItem('justtaken.preview.v1')
       .then((raw) => {
@@ -150,32 +154,34 @@ function JustTaken() {
     setUploadPhase(null);
     const note = draftNotes[capture.handle];
     setCaption(note?.caption ?? '');
-    setVisibility(note?.visibility ?? 'followers');
+    setVisibility(note?.visibility ?? 'private');
     setPlayingDraft(null);
     setSheet({ kind: 'compose', capture });
   }
   const currentTitle =
     tab === 'explore' ? '見つける' : tab === 'notifications' ? 'お知らせ' : 'マイページ';
   const sheetTitle =
-    sheet?.kind === 'proofs'
-      ? 'あなたの撮影証明'
-      : sheet?.kind === 'login'
-        ? 'ログイン'
-        : sheet?.kind === 'posts'
-          ? 'あなたの投稿'
-          : sheet?.kind === 'record'
-            ? '撮影記録'
-            : sheet?.kind === 'comments'
-              ? 'コメント'
-              : sheet?.kind === 'compose'
-                ? '撮影証明・投稿'
-                : sheet?.kind === 'saved'
-                  ? '保存した投稿'
-                  : sheet?.kind === 'settings'
-                    ? '設定'
-                    : sheet?.kind === 'more'
-                      ? '投稿について'
-                      : 'JustTakenについて';
+    sheet?.kind === 'moderation'
+      ? '運営の確認待ち'
+      : sheet?.kind === 'proofs'
+        ? 'あなたの撮影証明'
+        : sheet?.kind === 'login'
+          ? 'ログイン'
+          : sheet?.kind === 'posts'
+            ? 'あなたの投稿'
+            : sheet?.kind === 'record'
+              ? '撮影記録'
+              : sheet?.kind === 'comments'
+                ? 'コメント'
+                : sheet?.kind === 'compose'
+                  ? '撮影証明・投稿'
+                  : sheet?.kind === 'saved'
+                    ? '保存した投稿'
+                    : sheet?.kind === 'settings'
+                      ? '設定'
+                      : sheet?.kind === 'more'
+                        ? '投稿について'
+                        : 'JustTakenについて';
   const filtered = demoPosts.filter(
     (p) =>
       (!query ||
@@ -234,7 +240,7 @@ function JustTaken() {
           edges={['top', 'bottom']}
           style={[s.safe, tab === 'camera' && { backgroundColor: '#10221C' }]}
         >
-          {tab !== 'camera' && (
+          {(tab !== 'camera' || consentRequired) && (
             <View style={s.header}>
               <Image
                 source={require('./assets/justtaken-logo.png')}
@@ -252,6 +258,8 @@ function JustTaken() {
           <View style={s.main}>
             {!hydrated ? (
               <ActivityIndicator color={c.ink} />
+            ) : profile && consentRequired && (tab === 'home' || tab === 'camera') ? (
+              <CommunityConsent />
             ) : tab === 'home' && profile ? (
               <Posts
                 key={profile.userId}
@@ -259,6 +267,10 @@ function JustTaken() {
                 revision={postRevision}
                 onCamera={() => setTab('camera')}
               />
+            ) : tab === 'home' && Platform.OS !== 'web' ? (
+              <ScrollView contentContainerStyle={{ padding: 24 }}>
+                <Login onSuccess={() => setTab('home')} />
+              </ScrollView>
             ) : tab === 'home' ? (
               <Feed
                 likes={likes}
@@ -410,14 +422,18 @@ function JustTaken() {
                         <Text style={s.statValue}>{drafts.length}</Text>
                         <Text style={s.statLabel}>端末の下書き</Text>
                       </View>
-                      <View style={s.statDivider} />
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setSheet({ kind: 'saved' })}
-                      >
-                        <Text style={s.statValue}>{bookmarks.length}</Text>
-                        <Text style={s.statLabel}>保存したサンプル</Text>
-                      </Pressable>
+                      {Platform.OS === 'web' && (
+                        <>
+                          <View style={s.statDivider} />
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={() => setSheet({ kind: 'saved' })}
+                          >
+                            <Text style={s.statValue}>{bookmarks.length}</Text>
+                            <Text style={s.statLabel}>保存したサンプル</Text>
+                          </Pressable>
+                        </>
+                      )}
                     </View>
                     <View style={s.sectionHeading}>
                       <Text style={s.sectionTitle}>下書き</Text>
@@ -453,30 +469,41 @@ function JustTaken() {
               </ScrollView>
             )}
           </View>
-          {tab !== 'camera' && (
+          {(tab !== 'camera' || consentRequired) && (
             <View style={s.nav}>
-              {tabs.map((item) => (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="tab"
-                  accessibilityLabel={item.label}
-                  accessibilityState={{ selected: tab === item.id }}
-                  onPress={() => setTab(item.id)}
-                  style={s.navItem}
-                >
-                  {item.id === 'camera' ? (
-                    <View style={s.cameraTab}>
-                      <Icon name="camera" size={25} />
-                    </View>
-                  ) : (
-                    <Icon name={item.icon} size={21} color={tab === item.id ? c.ink : '#8A948C'} />
-                  )}
-                  <Text style={[s.navText, tab === item.id && { color: c.ink, fontWeight: '700' }]}>
-                    {item.label}
-                  </Text>
-                  {tab === item.id && <View style={s.navDot} />}
-                </Pressable>
-              ))}
+              {tabs
+                .filter(
+                  (item) =>
+                    Platform.OS === 'web' || ['home', 'camera', 'profile'].includes(item.id),
+                )
+                .map((item) => (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="tab"
+                    accessibilityLabel={item.label}
+                    accessibilityState={{ selected: tab === item.id }}
+                    onPress={() => setTab(item.id)}
+                    style={s.navItem}
+                  >
+                    {item.id === 'camera' ? (
+                      <View style={s.cameraTab}>
+                        <Icon name="camera" size={25} />
+                      </View>
+                    ) : (
+                      <Icon
+                        name={item.icon}
+                        size={21}
+                        color={tab === item.id ? c.ink : '#8A948C'}
+                      />
+                    )}
+                    <Text
+                      style={[s.navText, tab === item.id && { color: c.ink, fontWeight: '700' }]}
+                    >
+                      {item.label}
+                    </Text>
+                    {tab === item.id && <View style={s.navDot} />}
+                  </Pressable>
+                ))}
             </View>
           )}
         </SafeAreaView>
@@ -512,7 +539,9 @@ function JustTaken() {
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
               style={{ flex: 1 }}
             >
-              {sheet?.kind === 'proofs' ? (
+              {sheet?.kind === 'moderation' ? (
+                <Moderation />
+              ) : sheet?.kind === 'proofs' ? (
                 <Proofs
                   key={profile?.userId}
                   onCamera={() => {
@@ -648,6 +677,18 @@ function JustTaken() {
                     <>
                       <LocationSettings />
                       <WatermarkSettings />
+                      <LegalLinks />
+                      <AccountSettings
+                        onDeleted={() => {
+                          setDrafts([]);
+                          setDraftNotes({});
+                          setLikes([]);
+                          setBookmarks([]);
+                          setComments({});
+                          setPostRevision((v) => v + 1);
+                        }}
+                        onModeration={() => setSheet({ kind: 'moderation' })}
+                      />
                       <InfoRow
                         icon="lock"
                         title="公開範囲"
@@ -656,13 +697,13 @@ function JustTaken() {
                       <InfoRow
                         icon="hard-drive"
                         title="保存枠"
-                        copy="開発版の保存枠は2 GiBです。写真・動画の原画を保存します。送信に失敗した場合は下書きから再送できます。"
+                        copy="保存枠は2 GiBです。写真・動画の原画を保存します。送信に失敗した場合は下書きから再送できます。"
                       />
                       <InfoRow icon="smartphone" title="運営会社" copy="株式会社IMAKAI" />
                       <InfoRow
                         icon="smartphone"
-                        title="開発環境"
-                        copy="JustTaken 0.2.0 · iOS / Android。ログインと撮影認証は専用アプリから利用します。"
+                        title="アプリ情報"
+                        copy="JustTaken 1.0.0 · iOS / Android。ログインと撮影認証は専用アプリから利用します。"
                       />
                       {profile && (
                         <>
@@ -833,25 +874,27 @@ function JustTaken() {
                       <Text style={s.sectionTitle}>投稿時の公開範囲</Text>
                       {(
                         [
-                          { value: 'followers', label: '承認したフォロワー' },
+                          { value: 'public', label: 'すべてのユーザー' },
                           { value: 'private', label: '自分のみ' },
                         ] as const
-                      ).map((option) => (
-                        <Pressable
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked: visibility === option.value }}
-                          key={option.value}
-                          disabled={sending}
-                          onPress={() => setVisibility(option.value)}
-                          style={s.option}
-                        >
-                          <Icon
-                            name={visibility === option.value ? 'check-circle' : 'circle'}
-                            size={19}
-                          />
-                          <Text style={s.bodyText}>{option.label}</Text>
-                        </Pressable>
-                      ))}
+                      )
+                        .filter((option) => option.value !== 'public' || !profile?.isPrivate)
+                        .map((option) => (
+                          <Pressable
+                            accessibilityRole="radio"
+                            accessibilityState={{ checked: visibility === option.value }}
+                            key={option.value}
+                            disabled={sending}
+                            onPress={() => setVisibility(option.value)}
+                            style={s.option}
+                          >
+                            <Icon
+                              name={visibility === option.value ? 'check-circle' : 'circle'}
+                              size={19}
+                            />
+                            <Text style={s.bodyText}>{option.label}</Text>
+                          </Pressable>
+                        ))}
                       <Text style={s.small}>
                         ファイルと撮影記録の照合、内容の確認を経て投稿されます。写っている内容の真偽を保証するものではありません。
                       </Text>

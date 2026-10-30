@@ -1,6 +1,6 @@
 @font-face {
   font-family: LandingJP;
-  src: url('/assets/landing-jp.woff2?v=8') format('woff2');
+  src: url('/assets/landing-jp.woff2?v=11') format('woff2');
   font-weight: 400 900;
   font-display: swap;
 }
@@ -451,6 +451,25 @@ button:disabled {
   font-size: clamp(16px, 1.3vw, 17px);
   line-height: 2;
   color: var(--ink-soft);
+}
+.hero-policy {
+  margin-top: 24px;
+  padding-left: 16px;
+  border-left: 3px solid var(--leaf);
+}
+.hero-policy-title span,
+.hero-policy-title strong {
+  display: block;
+}
+.hero-policy-title span {
+  font-size: 14px;
+  font-weight: 600;
+}
+.hero-policy-title strong {
+  margin-top: 4px;
+  font-size: clamp(18px, 1.6vw, 21px);
+  line-height: 1.6;
+  word-break: auto-phrase;
 }
 .hero-actions {
   display: flex;

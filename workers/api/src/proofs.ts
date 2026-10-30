@@ -78,17 +78,19 @@ export async function publicProofRoutes(
     env.HOME.prepare(
       `SELECT p.*, s.expires_at FROM proof_shares s
     JOIN capture_proofs p ON p.proof_id=s.proof_id
-    WHERE s.share_id=? AND s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>?`,
+    WHERE s.share_id=? AND s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>?
+      AND NOT EXISTS(SELECT 1 FROM moderation_decisions m WHERE m.capture_id=p.capture_id AND m.decision='BLOCKED')`,
     )
       .bind(match[1], hash, Date.now())
       .first<ProofRow & { expires_at: number }>();
   const row = await query();
   if (!row) fail(404, 'SHARE_UNAVAILABLE', '共有リンクが無効、期限切れ、または停止されています。');
   await available(env, row);
+  const evidence = await bundle(env, row);
   // Recheck revocation after the external Durable Object/crypto awaits.
   if (!(await query())) fail(404, 'SHARE_UNAVAILABLE', '共有リンクは停止されています。');
   return json({
-    bundle: await bundle(env, row),
+    bundle: evidence,
     expiresAt: row.expires_at,
     checkedAt: new Date().toISOString(),
   });
@@ -261,6 +263,16 @@ export async function proofRoutes(
     });
   }
   if (match[2] === 'shares' && method === 'POST') {
+    async function requireShareable() {
+      const blocked = await env.HOME.prepare(
+        "SELECT 1 FROM moderation_decisions WHERE capture_id=? AND decision='BLOCKED'",
+      )
+        .bind(row!.capture_id)
+        .first();
+      if (blocked)
+        fail(403, 'SHARING_RESTRICTED', '内容確認により、この撮影証明の共有は停止されています。');
+    }
+    await requireShareable();
     const data = await bodyJSON(request, 4096),
       days = data.days ?? 7;
     if (![1, 7, 30].includes(days))
@@ -277,12 +289,16 @@ export async function proofRoutes(
       .run();
     const inserted = await env.HOME.prepare(
       `INSERT INTO proof_shares(share_id,proof_id,token_hash,expires_at,created_at)
-      SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM proof_shares WHERE proof_id=?)<20`,
+      SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM proof_shares WHERE proof_id=?)<20
+        AND EXISTS(SELECT 1 FROM profiles WHERE user_id=? AND status='ACTIVE')
+        AND NOT EXISTS(SELECT 1 FROM moderation_decisions WHERE capture_id=? AND decision='BLOCKED')`,
     )
-      .bind(id, row.proof_id, await sha(secret), expiresAt, now, row.proof_id)
+      .bind(id, row.proof_id, await sha(secret), expiresAt, now, row.proof_id, user, row.capture_id)
       .run();
-    if (!inserted.meta.changes)
+    if (!inserted.meta.changes) {
+      await requireShareable();
       fail(429, 'TOO_MANY_SHARES', '既存の共有リンクを停止してから作成してください。');
+    }
     return json({ url: proofIssuer(env) + '/verify#' + id + '.' + secret, expiresAt }, 201);
   }
   if (match[2] === 'original' && (method === 'GET' || method === 'HEAD')) {

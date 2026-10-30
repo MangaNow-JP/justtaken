@@ -1,5 +1,13 @@
 .legal-page {
   background: #fff;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Yu Gothic',
+    'Meiryo',
+    sans-serif;
 }
 .legal-page .article-header {
   padding: 25px 0;

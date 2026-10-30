@@ -16,6 +16,7 @@
     "./policy": "./src/policy.ts",
     "./text": "./src/text.ts",
     "./session": "./src/session.ts",
-    "./proof": "./src/proof.ts"
+    "./proof": "./src/proof.ts",
+    "./community": "./src/community.ts"
   }
 }

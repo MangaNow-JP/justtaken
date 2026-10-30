@@ -8,14 +8,17 @@
     <title>JustTaken — 盛らない、つくらない。いまを、そのまま。</title>
     <meta
       name="description"
-      content="ありのままの写真と動画でつながるSNS、JustTaken。写真も最大60秒の動画も、元の画質のまま。撮影記録とともに、あなたが撮った「いま」を残そう。"
+      content="投稿できるのは、JustTakenのカメラで撮った写真と動画だけ。撮った「いま」でつながるSNSです。写真も最大60秒の動画も、撮影した画質のまま保存。"
     />
     <link rel="canonical" href="https://justtaken.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ja_JP" />
     <meta property="og:site_name" content="JustTaken" />
     <meta property="og:title" content="JustTaken — いまを、そのまま。" />
-    <meta property="og:description" content="撮って、つながる。ありのままの写真と動画のSNS。" />
+    <meta
+      property="og:description"
+      content="投稿できるのは、JustTakenのカメラで撮った写真と動画だけ。自分で撮った「いま」でつながるSNS。"
+    />
     <meta property="og:url" content="https://justtaken.app/" />
     <meta property="og:image" content="https://justtaken.app/assets/og-cover.png" />
     <meta property="og:image:width" content="1200" />
@@ -25,14 +28,14 @@
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
     <link
       rel="preload"
-      href="/assets/landing-jp.woff2?v=8"
+      href="/assets/landing-jp.woff2?v=11"
       as="font"
       type="font/woff2"
       crossorigin
     />
-    <link rel="preload" as="image" href="/assets/friends-960.webp" fetchpriority="high" />
-    <link rel="stylesheet" href="/assets/site.css?v=8" />
-    <script src="/assets/site.js?v=4" defer></script>
+    <link rel="preload" as="image" href="/assets/friends-break-960.webp" fetchpriority="high" />
+    <link rel="stylesheet" href="/assets/site.css?v=11" />
+    <script src="/assets/site.js?v=5" defer></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -155,8 +158,14 @@
             <span>盛らない、つくらない。</span><span class="hero-accent">いまを、そのまま。</span>
           </h1>
           <p class="hero-description">
-            帰り道の景色も、友だちの笑い声も。<br />自分で撮った写真と動画を、そのまま残す。<br />JustTakenは、そんなカメラとSNSです。
+            帰り道の景色も、友だちの笑い声も。<br />自分で撮った写真や動画を、そのまま残す。<br />JustTakenは、撮った「いま」でつながるSNSです。
           </p>
+          <div class="hero-policy">
+            <p class="hero-policy-title">
+              <span>投稿できるのは、</span
+              ><strong>JustTakenのカメラで撮った写真と動画だけ。</strong>
+            </p>
+          </div>
           <div class="hero-actions">
             <button class="button button-forest" type="button" data-signup>
               先行登録する
@@ -181,19 +190,25 @@
         <div class="hero-photos" aria-hidden="true">
           <figure class="floating-photo hero-friends">
             <img
-              src="/assets/friends-960.webp"
+              src="/assets/friends-break-960.webp"
               width="960"
-              height="540"
+              height="642"
               alt=""
               fetchpriority="high"
             />
             <figcaption>なんでもない日が、いい日。</figcaption>
           </figure>
           <figure class="floating-photo hero-dog">
-            <img src="/assets/dog-480.webp" width="480" height="621" alt="" decoding="async" />
+            <img src="/assets/dog-walk-480.webp" width="480" height="720" alt="" decoding="async" />
           </figure>
           <figure class="floating-photo hero-coffee">
-            <img src="/assets/coffee-480.webp" width="480" height="320" alt="" decoding="async" />
+            <img
+              src="/assets/desk-coffee-480.webp"
+              width="480"
+              height="224"
+              alt=""
+              decoding="async"
+            />
           </figure>
         </div>
       </section>
@@ -239,43 +254,40 @@
             class="moment-card"
             type="button"
             aria-haspopup="dialog"
-            data-photo="coffee"
-            data-caption="いつもの朝"
+            data-photo="desk-coffee"
+            data-caption="作業のひと休み"
           >
             <span class="moment-image"
               ><img
-                src="/assets/coffee-480.webp"
+                src="/assets/desk-coffee-480.webp"
                 width="480"
-                height="320"
+                height="224"
                 loading="lazy"
                 decoding="async"
-                alt="グラスに注がれたアイスコーヒー" /><svg
+                alt="キーボードの横に置かれたコーヒーカップ" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
               >
                 <use href="#i-diagonal" /></svg></span
-            ><span class="moment-caption"><span class="moment-number">02</span>いつもの朝</span>
+            ><span class="moment-caption"><span class="moment-number">02</span>作業のひと休み</span>
           </button>
           <button
             class="moment-card"
             type="button"
             aria-haspopup="dialog"
-            data-photo="friends"
-            data-caption="友だちと"
+            data-photo="friends-break"
+            data-caption="友だちとごはん"
           >
             <span class="moment-image"
               ><img
-                src="/assets/friends-480.webp"
+                src="/assets/friends-break-480.webp"
                 width="480"
-                height="270"
+                height="321"
                 loading="lazy"
                 decoding="async"
-                alt="公園で笑顔を寄せ合う友人たち" /><svg
-                class="icon photo-expand"
-                aria-hidden="true"
-              >
+                alt="外で食事を楽しむ友人たち" /><svg class="icon photo-expand" aria-hidden="true">
                 <use href="#i-diagonal" /></svg></span
-            ><span class="moment-caption"><span class="moment-number">03</span>友だちと</span>
+            ><span class="moment-caption"><span class="moment-number">03</span>友だちとごはん</span>
           </button>
           <button
             class="moment-card"
@@ -317,22 +329,22 @@
             class="moment-card"
             type="button"
             aria-haspopup="dialog"
-            data-photo="dog"
-            data-caption="海まで散歩"
+            data-photo="dog-walk"
+            data-caption="いつもの散歩"
           >
             <span class="moment-image"
               ><img
-                src="/assets/dog-480.webp"
+                src="/assets/dog-walk-480.webp"
                 width="480"
-                height="621"
+                height="720"
                 loading="lazy"
                 decoding="async"
-                alt="砂浜を走るゴールデンレトリバー" /><svg
+                alt="赤いリードを付けて舗道を歩く犬" /><svg
                 class="icon photo-expand"
                 aria-hidden="true"
               >
                 <use href="#i-diagonal" /></svg></span
-            ><span class="moment-caption"><span class="moment-number">06</span>海まで散歩</span>
+            ><span class="moment-caption"><span class="moment-number">06</span>いつもの散歩</span>
           </button>
         </div>
         <p class="image-credit">
@@ -346,7 +358,7 @@
         <div class="section-heading camera-heading">
           <div class="section-head">
             <p class="section-kicker">JustTakenのカメラ</p>
-            <h2 id="camera-title">写真も、動画も。撮った画質で。</h2>
+            <h2 id="camera-title">写真も、動画も。撮影した画質のまま。</h2>
             <p class="section-description">
               写真も、最大60秒の動画も。<br
                 class="mobile-break"
@@ -413,27 +425,27 @@
           </div>
           <div class="camera-visual visual-dog">
             <img
-              src="/assets/dog-960.webp"
+              src="/assets/dog-walk-960.webp"
               width="960"
-              height="1243"
+              height="1440"
               loading="lazy"
               decoding="async"
-              alt="砂浜を駆けるゴールデンレトリバー"
+              alt="赤いリードを付けて舗道を歩く犬"
             /><span class="camera-caption">ふとした瞬間も。</span>
           </div>
         </div>
         <p id="camera-description" class="camera-description" aria-live="polite">
-          見た景色を、撮影した画質のまま。対応端末ではHEIF・RAW・HDR写真にも対応します。
+          見た景色を、撮影した画質のまま残せます。対応端末なら、HEIF・RAW・HDR写真も撮影できます。
         </p>
         <div class="watermark-demo" id="watermark">
           <div class="watermark-demo-image">
             <img
-              src="/assets/coffee-960.webp"
+              src="/assets/desk-coffee-960.webp"
               width="960"
-              height="641"
+              height="448"
               loading="lazy"
               decoding="async"
-              alt="ロゴ表示のイメージ：アイスコーヒーの写真"
+              alt="ロゴ表示のイメージ：机に置かれたコーヒーの写真"
             /><span class="photo-watermark" data-watermark aria-hidden="true"
               ><svg class="watermark-icon"><use href="#i-mark" /></svg
               ><strong>JustTaken</strong></span
@@ -441,7 +453,7 @@
           </div>
           <div class="watermark-demo-copy">
             <p class="section-kicker">写真に添えるロゴ</p>
-            <h3>「さっき撮ったよ」</h3>
+            <h3>「今、撮ったよ。」</h3>
             <p>写真の隅に、本物の証。<br />もちろん表示するかどうかは、あなたが決める。</p>
             <div class="watermark-control">
               <span id="watermark-label">ロゴの表示を試す</span
@@ -460,7 +472,7 @@
               アプリでは「設定」から切り替えられます。原本の画質と撮影証明はそのまま。原本の書き出しにはロゴを入れません。
             </p>
             <p class="watermark-note" id="watermark-storage-note">
-              この体験の設定は、このブラウザに保存されます。
+              このページで選んだ表示設定は、このブラウザに保存されます。
             </p>
           </div>
         </div>
@@ -485,9 +497,9 @@
           <div class="social-scene" aria-label="開発中のアプリ画面と写真のイメージ" role="img">
             <figure class="scene-photo scene-friends">
               <img
-                src="/assets/friends-480.webp"
+                src="/assets/friends-break-480.webp"
                 width="480"
-                height="270"
+                height="321"
                 loading="lazy"
                 decoding="async"
                 alt=""
@@ -495,9 +507,9 @@
             </figure>
             <figure class="scene-photo scene-dog">
               <img
-                src="/assets/dog-480.webp"
+                src="/assets/dog-walk-480.webp"
                 width="480"
-                height="621"
+                height="720"
                 loading="lazy"
                 decoding="async"
                 alt=""
@@ -562,7 +574,7 @@
             ></span>
             <h3>写真も動画も、元の画質で。</h3>
             <p>
-              撮影した写真・動画は、公開用の原本として再圧縮せずに保存。HEIF・RAW・HDR写真も、対応端末で撮影した形式を保持します。フィード用のプレビューは別に用意します。
+              撮影した写真・動画の原本は、再圧縮せずに保存します。対応端末で撮影したHEIF・RAW・HDR写真も、その形式を保ちます。フィードには、表示用のプレビューを別に用意します。
             </p>
           </article>
           <article class="feature-card blue">
@@ -614,9 +626,9 @@
                     ><svg class="icon" aria-hidden="true"><use href="#i-share" /></svg
                   ></span>
                   <div>
-                    <h3>受け取った人が照合できる</h3>
+                    <h3>受け取った人が確かめられる</h3>
                     <p>
-                      証明をリンクやファイルで共有。原本も一緒に渡すと、受け取った人が一致を確認できます。
+                      証明をリンクやファイルで共有。原本も一緒に渡すと、受け取った写真や動画が保存原本と一致するかを確認できます。
                     </p>
                   </div>
                 </li>
@@ -626,7 +638,7 @@
                 <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg
               ></a>
               <p class="certificate-release-note">
-                アプリは開発中です。受け手の検証にログインは必要ありません。
+                アプリは開発中です。撮影証明の確認には、ログインは必要ありません。
               </p>
             </div>
             <div class="certificate-stage">
@@ -649,10 +661,10 @@
                 </div>
                 <div class="certificate-photo">
                   <img
-                    src="/assets/coffee-960.webp"
+                    src="/assets/desk-coffee-960.webp"
                     width="960"
-                    height="641"
-                    alt="証明書の表示例に使用したコーヒーの素材写真"
+                    height="448"
+                    alt="証明書の表示例に使用した机のコーヒーの素材写真"
                     loading="lazy"
                     decoding="async"
                   /><span>写真・動画に対応</span>
@@ -671,7 +683,7 @@
                   </div>
                   <div>
                     <dt>記録の裏付け</dt>
-                    <dd>第三者時刻・監査ログ</dd>
+                    <dd>第三者の時刻認証・監査ログ</dd>
                   </div>
                 </dl>
                 <footer class="certificate-paper-footer">
@@ -721,7 +733,7 @@
               ><span>JustTaken</span><span class="biz-brand-tag">for Biz</span>
             </div>
             <p class="biz-eyebrow">仕事で使うJustTaken</p>
-            <h2 id="biz-title">その写真を、<br />確認する仕事にも。</h2>
+            <h2 id="biz-title">写真を使う仕事にも、<br />撮影証明を。</h2>
             <p class="biz-intro">
               保険の事故受付や、工事の報告。<br />写真を受け取るだけでなく、<br />撮影記録と照合するところまで。
             </p>
@@ -733,7 +745,7 @@
                 >活用の流れを見る <span aria-hidden="true">↓</span></a
               >
             </div>
-            <p class="biz-development">法人向けの活用構想です。アプリは開発中です。</p>
+            <p class="biz-development">法人向けの活用を検討しています。アプリは開発中です。</p>
           </div>
           <article class="biz-review" aria-label="保険の提出資料を照合する流れのイメージ">
             <header class="biz-review-header">
@@ -775,7 +787,7 @@
               </div>
             </dl>
             <p class="biz-review-note">
-              照合結果を、他の資料とあわせた確認に。<br />事故の真偽や不正の有無を自動判定するものではありません。
+              照合結果は、ほかの資料とあわせてご確認ください。<br />事故の真偽や不正の有無を自動判定するものではありません。
             </p>
           </article>
         </div>
@@ -787,7 +799,7 @@
               <h3>保険の事故・損害確認</h3>
             </div>
             <p>
-              保険請求の写真・動画を、原本と撮影証明で受け取る。保存原本からの改変や差し替えの確認に役立てます。
+              保険請求に使う写真・動画の原本を、撮影証明と一緒に受け取る。保存原本からの改変や差し替えの確認に役立てます。
             </p>
             <span class="biz-case-example">事故受付・損害確認の補助資料に</span>
           </article>
@@ -831,7 +843,7 @@
               <span>02</span>
               <div>
                 <h4>原本と証明を提出</h4>
-                <p>原本は形式を保つファイルで。<br />証明はリンクやファイルで。</p>
+                <p>原本は、撮影時のファイル形式のまま。<br />証明はリンクやファイルで。</p>
               </div>
             </li>
             <li>
@@ -878,10 +890,10 @@
           </details>
           <details>
             <summary>
-              AIや加工は使わないのですか？<span class="faq-toggle" aria-hidden="true"></span>
+              AIによる生成や加工はできますか？<span class="faq-toggle" aria-hidden="true"></span>
             </summary>
             <p>
-              JustTakenは、アプリのカメラで実際に撮影した写真と動画を大切にします。AIで被写体を生成したり、顔や景色を書き換える編集機能は設けません。端末のカメラによる露出・HDRなどの通常の撮影処理は使用します。
+              いいえ。JustTakenには、写真や動画をAIで生成したり、顔や景色をAIで加工したりする機能はありません。端末・OSが撮影時に行う露出調整やHDRなどの処理は利用します。端末側の処理まで含めて、AIが一切関わっていないことを保証するものではありません。
             </p>
           </details>
           <details>
@@ -946,7 +958,7 @@
             </button>
           </form>
           <p class="closing-note">
-            無料の先行案内受付 · 次の画面で利用予定の端末を選び、同意のうえ登録します。
+            先行登録は無料です。次の画面で利用予定の端末を選び、同意のうえ登録します。
           </p>
         </div>
       </section>

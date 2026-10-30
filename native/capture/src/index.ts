@@ -45,6 +45,7 @@ interface CaptureModule {
   discard(handle: string): Promise<void>;
   listDrafts(): Promise<LocalCapture[]>;
   enroll(installationId: string, challenge: string): Promise<unknown>;
+  forgetInstallation(installationId: string): Promise<void>;
   prepareProof(handle: string): Promise<{ manifest: unknown; proof: unknown }>;
   upload(handle: string, assetId: string, accessToken: string): Promise<void>;
 }

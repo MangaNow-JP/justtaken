@@ -39,6 +39,8 @@ class JustTakenCaptureModule : Module() {
     AsyncFunction("upload") { handle: String, assetId: String, accessToken: String -> CaptureStore.upload(requireNotNull(appContext.reactContext), handle, assetId, accessToken) }
     AsyncFunction("discard") { handle: String -> CaptureStore.discard(requireNotNull(appContext.reactContext), handle) }
     AsyncFunction("listDrafts") { CaptureStore.list(requireNotNull(appContext.reactContext)) }
+    // Play Integrity keeps no per-installation secret on this device.
+    AsyncFunction("forgetInstallation") { installationId: String -> java.util.UUID.fromString(installationId); Unit }
     View(JustTakenCaptureView::class) {
       Events("onCapture", "onReady", "onError", "onRecording")
       Prop("captureSession") { view: JustTakenCaptureView, value: String -> view.captureSession = value }

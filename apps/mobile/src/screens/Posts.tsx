@@ -7,6 +7,7 @@ import { OriginalPhoto } from '../components/OriginalPhoto';
 import { VideoPreview } from '../components/VideoPreview';
 import { useAuth } from '../services/auth';
 import { colors as c } from '../theme';
+import { PostSafety } from '../components/PostSafety';
 export function Posts({
   scope = 'feed',
   revision = 0,
@@ -61,7 +62,7 @@ export function Posts({
       }
     >
       <View style={s.heading}>
-        <Text style={s.title}>{scope === 'mine' ? 'あなたの投稿' : 'フォロー中'}</Text>
+        <Text style={s.title}>{scope === 'mine' ? 'あなたの投稿' : 'ホーム'}</Text>
         <Icon name="shield" size={18} />
       </View>
       {!!error && (
@@ -233,7 +234,9 @@ function PostCard({
       {post.state !== 'PUBLISHED' && (
         <View style={s.notice}>
           <Text style={s.small}>
-            投稿を受け付けました。内容の確認が終わるまで、この投稿はあなただけに表示されます。
+            {post.moderation === 'BLOCKED'
+              ? '内容の確認により、この投稿の公開を停止しました。お問い合わせは設定のリンクからご連絡ください。'
+              : '投稿を受け付けました。内容の確認が終わるまで、この投稿はあなただけに表示されます。'}
           </Text>
           <Button
             disabled={busy}
@@ -257,6 +260,9 @@ function PostCard({
       <Button secondary icon="shield" disabled={busy} onPress={() => void showRecord()}>
         撮影記録を見る
       </Button>
+      {profile?.userId !== post.author_id && (
+        <PostSafety postId={post.post_id} authorId={post.author_id} onChange={onChange} />
+      )}
       {profile?.userId === post.author_id && (
         <View style={{ gap: 10 }}>
           {confirmDelete ? (

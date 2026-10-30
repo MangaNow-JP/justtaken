@@ -96,7 +96,10 @@ $$('[data-photo]').forEach((button) =>
 );
 
 const cameraModes = {
-  photo: ['写真', '見た景色を、撮影した画質のまま。対応端末ではHEIF・RAW・HDR写真にも対応します。'],
+  photo: [
+    '写真',
+    '見た景色を、撮影した画質のまま残せます。対応端末なら、HEIF・RAW・HDR写真も撮影できます。',
+  ],
   video: [
     '動画 · 最大60秒',
     '動きも、声も、そのまま残そう。最大60秒の音声付き動画を、インカメラ・アウトカメラで撮影できます。写真は機能のイメージです。',
@@ -153,7 +156,7 @@ $('#closing-form').addEventListener('submit', (e) => {
   $('#signup-form input[name=platform]:checked').focus();
 });
 
-const failure = '受け付けできませんでした。時間をおいてお試しください。';
+const failure = '受け付けられませんでした。時間をおいてお試しください。';
 const offline = '通信できませんでした。接続を確認して、もう一度お試しください。';
 async function sendRegistration(method, body) {
   const response = await fetch('/public/early-access', {

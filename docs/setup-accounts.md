@@ -1,6 +1,6 @@
 # JustTaken 新規アプリ登録・接続手順
 
-2026-10-25。既存アカウントと新規アプリの登録は別です。現在の `app.justtaken.dev` はローカル開発用の暫定識別子です。CloudflareにはJustTaken専用の本番DB・非公開R2・Workerを作成し、`https://justtaken.app` で稼働しています。Apple/Googleの専用アプリ登録は未設定です。
+2026-10-30更新。`app.justtaken.dev` はローカル開発用です。AppleにはImakai Inc.（Team `CQC25QD69U`）の正式App ID `app.justtaken.ios` を登録し、Sign in with AppleとApp Attestを有効化しました。専用キーチェーンで署名した1.0.0 (1) のIPAを作成・検証し、App Store ConnectのJustTaken（`6828439735`）へアップロード済みです。審査提出、本番APIのApple接続、実機試験は未完了です。Cloudflareには専用の本番DB・非公開R2・Workerを作成し、`https://justtaken.app` で稼働しています。本番にはこのチェックアウト未反映のAndroid設定・認証戻り先があるため、次回更新前に同期が必要です。申請の進捗は [iOS初回申請](app-store/submission.md) を参照してください。
 
 ## 設定するもの
 
@@ -67,7 +67,7 @@
 3. アプリを再起動し、下書きから同じ撮影を再送。commitとreceiptと投稿が重複しないことを確認。
 4. 写真の撮影出力と保存後の圧縮画素・ICC・向きの一致、GPS削除を確認。動画は前後カメラ・音声/無音・4K対応レンズ・HDR・回転・60秒自動停止を試験し、映像/音声サンプルの一致を確認。thumb/posterは480px/64KiB以下。
 5. 8MiBを超える原画で通信断・再起動・期限切れ・取消を試し、受領済みpartを再送せず復帰できることを確認。R2へ原画とプレビューを送信し、検証票とVERIFIEDを確認。投稿は内容確認が終わるまでPROCESSINGで所有者だけが見える。
-6. 運営が写真を実際に確認して `moderation_decisions` を記録した後、投稿の「確認状況を更新」で公開条件を再検査。審査UIと運用接続は未実装。
+6. 運営が写真を実際に確認して `moderation_decisions` を記録した後、投稿の「確認状況を更新」で公開条件を再検査。設定内の「運営の確認待ち」から審査できます。利用する担当者のuser IDを本番のMODERATOR_USER_IDSへ明示設定する必要があります。
 7. 他アカウント・非承認フォロワー・ブロック・削除済み投稿・古いmedia grant・Range/HEADでもアクセスを拒否することを実機で確認。
 
 `npm run test:integration` は実際のworkerdを使うが、テスト鍵・テストアカウントを隔離されたfixture Workerへ注入する。Apple/Google本物のアカウントや実機センサーの認証が成功した証拠ではない。fixture Workerはデプロイしない。

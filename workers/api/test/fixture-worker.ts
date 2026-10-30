@@ -1,4 +1,5 @@
 // TEST ENTRY POINT ONLY. Never imported by src/index.ts or deployed.
+import { communityPolicy } from '@justtaken/contracts/community';
 import { AuthSession } from '../src/auth-object';
 import { CaptureSecurity } from '../src/capture-object';
 import application, { handleRequest } from '../src/app';
@@ -7,6 +8,8 @@ import { sha, json } from '../src/http';
 import type { Bindings } from '../src/types';
 import { processAnchor, anchorStatus } from '../src/anchors';
 import { externalFetch } from '../src/anchor-client';
+import { processAccountDeletions } from '../src/account-deletion';
+import { encryptProviderToken } from '../src/provider-tokens';
 import { timestampRequest } from '../src/anchor-crypto';
 export class FixtureAuth extends AuthSession {
   async seed(userId: string, access: string, refresh: string) {
@@ -61,6 +64,18 @@ export default {
     return application.scheduled(event, { ...env, PROOF_ANCHOR_PROVIDER: 'sigstore-v1' }, ctx);
   },
   async fetch(request: Request, env: Bindings) {
+    if (new URL(request.url).pathname === '/__fixture/deletions') {
+      await processAccountDeletions(env);
+      return json({ processed: true });
+    }
+    if (new URL(request.url).pathname === '/__fixture/provider') {
+      const d = await request.json<any>();
+      const value = await encryptProviderToken(env, d.userId, 'fixture-provider-token');
+      await env.HOME.prepare('INSERT OR REPLACE INTO provider_credentials VALUES(?,?,?,?)')
+        .bind(d.userId, 'apple', value, Date.now())
+        .run();
+      return json({ seeded: true });
+    }
     if (new URL(request.url).pathname === '/__fixture/has-location') {
       const d = await request.json<{ installationId: string; captureId: string }>();
       const present = await (env.CAPTURE as unknown as DurableObjectNamespace<FixtureCapture>)
@@ -114,6 +129,22 @@ export default {
       await (env.CAPTURE as unknown as DurableObjectNamespace<FixtureCapture>)
         .getByName(d.installationId)
         .seed(d.installationId, d.userId, d.publicKey);
+      await env.HOME.batch([
+        env.HOME.prepare(
+          'INSERT OR IGNORE INTO user_auth_sessions(session_id,user_id) VALUES(?,?)',
+        ).bind(d.sessionId, d.userId),
+        env.HOME.prepare(
+          'INSERT OR IGNORE INTO user_installations(installation_id,user_id) VALUES(?,?)',
+        ).bind(d.installationId, d.userId),
+        env.HOME.prepare('INSERT OR IGNORE INTO user_consents VALUES(?,?,?,?,?,?)').bind(
+          d.userId,
+          communityPolicy.termsVersion,
+          communityPolicy.privacyVersion,
+          new Date().toISOString(),
+          communityPolicy.ageConfirmationVersion,
+          new Date().toISOString(),
+        ),
+      ]);
       return json({ seeded: true });
     }
     const response = await handleRequest(request, env);

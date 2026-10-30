@@ -23,6 +23,9 @@ workers/api/src/generated/
 *.key
 *.jks
 *.mobileprovision
+*.keychain
+*.keychain-db
+*.password
 docs/invention-notes.md
 
 # Temporary files left by macOS image encoders.

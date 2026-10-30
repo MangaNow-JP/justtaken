@@ -17,7 +17,7 @@
     "android": "npm run android --workspace @justtaken/mobile",
     "api": "npm run dev --workspace @justtaken/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "node --import tsx --test packages/contracts/test/*.test.ts workers/api/test/*.test.ts",
+    "test": "node --import tsx --test packages/contracts/test/*.test.ts workers/api/test/*.test.ts apps/mobile/test/*.test.cjs",
     "check": "npm run typecheck && npm test",
     "build:web": "npm run build:web --workspace @justtaken/mobile",
     "format": "prettier --write .",
@@ -26,7 +26,12 @@
     "setup:local": "node scripts/setup-local.mjs && wrangler d1 migrations apply HOME --local --config workers/api/wrangler.jsonc",
     "build:proof-cli": "node scripts/build-proof-cli.mjs",
     "verify:production": "node scripts/verify-production.mjs",
-    "deploy:production": "wrangler d1 migrations apply HOME --remote --config workers/api/wrangler.production.jsonc && wrangler deploy --config workers/api/wrangler.production.jsonc --strict"
+    "deploy:production": "wrangler d1 migrations apply HOME --remote --config workers/api/wrangler.production.jsonc && wrangler deploy --config workers/api/wrangler.production.jsonc --strict",
+    "ios:release:config": "node scripts/ios-release.mjs config",
+    "ios:release:prebuild": "node scripts/ios-release.mjs prebuild",
+    "ios:release:archive": "node scripts/ios-release.mjs archive",
+    "ios:release:export": "node scripts/ios-release.mjs export",
+    "ios:release:upload": "node scripts/ios-release.mjs upload"
   },
   "devDependencies": {
     "@types/node": "22.15.30",

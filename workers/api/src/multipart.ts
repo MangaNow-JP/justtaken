@@ -110,7 +110,12 @@ export class MultipartUploads {
           .complete(parts.map(({ partNumber, etag }) => ({ partNumber, etag })));
       if (object.size !== asset.bytes || object.customMetadata?.sha256 !== asset.sha256)
         fail(422, 'ASSET_MISMATCH', 'ファイルの情報が一致しません。');
-      this.live(user, id, assetId);
+      try {
+        this.live(user, id, assetId);
+      } catch (error) {
+        await this.bucket.delete(key);
+        throw error;
+      }
       this.records.put(name, { ...saved, complete: true });
       // The whole-file hash and format are checked separately by capture.complete, before VERIFIED.
       return { uploaded: true };

@@ -38,7 +38,13 @@
     },
   ],
   "secrets": {
-    "required": ["RECEIPT_PRIVATE_JWK", "RECEIPT_KEY_ID", "MEDIA_SECRET"],
+    "required": [
+      "RECEIPT_PRIVATE_JWK",
+      "RECEIPT_KEY_ID",
+      "MEDIA_SECRET",
+      "APPLE_PRIVATE_KEY",
+      "PROVIDER_TOKEN_KEY",
+    ],
   },
   "observability": {
     "enabled": true,
@@ -47,11 +53,18 @@
     "traces": { "enabled": true, "head_sampling_rate": 0.01 },
   },
   "vars": {
+    "ALLOWED_ORIGINS": "https://justtaken.app",
+    "ANDROID_CERTIFICATES": "qG0Ebv_BEv0ZulJ4n7hQvTlD2xaX9bx8SOV5GR7xbNs,OmMzh59Zw2LfLk3rF7PfxOM76H88FZZDXQL81sVtHFA,DGbITjhF368riacYKxDCEFNU5TgToLDz-fDpFPCEVJc",
+    "ANDROID_MIN_VERSION": "1",
+    "ANDROID_PACKAGE": "app.justtaken",
+    "API_ORIGIN": "https://justtaken.app",
+    "APP_RETURN_URL": "justtaken://auth",
     "ENVIRONMENT": "production",
     "PROOF_ANCHOR_PROVIDER": "sigstore-v1",
-    "API_ORIGIN": "https://justtaken.app",
-    "APP_RETURN_URL": "justtaken-dev://auth",
-    "ALLOWED_ORIGINS": "https://justtaken.app",
+    "APPLE_AUDIENCE": "app.justtaken.ios",
+    "APPLE_BUNDLE_ID": "app.justtaken.ios",
+    "APPLE_TEAM_ID": "CQC25QD69U",
+    "APPLE_KEY_ID": "QNKKQD8FKL",
   },
   "d1_databases": [
     {

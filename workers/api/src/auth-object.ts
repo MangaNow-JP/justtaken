@@ -1,8 +1,11 @@
 import { capturePolicy } from '@justtaken/contracts';
+import { communityPolicy } from '@justtaken/contracts/community';
 import { DurableObject } from 'cloudflare:workers';
 import { Records } from './storage';
 import { b64, fail, requireValue, rpc, sha, token } from './http';
 import { verifyIdentity } from './identity';
+import { appleConfigured, exchangeAppleCode, storeProviderToken } from './provider-tokens';
+import { registerAuthSession } from './account-deletion';
 import type { Bindings, Profile, Principal } from './types';
 type Challenge = {
   id: string;
@@ -11,6 +14,8 @@ type Challenge = {
   verifierHash?: string;
   expires: number;
   consumed: boolean;
+  ageConfirmationVersion?: string;
+  ageConfirmedAt?: string;
 };
 type Session = {
   userId: string;
@@ -27,15 +32,23 @@ export class AuthSession extends DurableObject<Bindings> {
     super(ctx, env);
     this.records = new Records(ctx.storage);
   }
-  create(id: string, provider: 'apple' | 'google', verifierHash?: string) {
+  create(
+    id: string,
+    provider: 'apple' | 'google',
+    verifierHash?: string,
+    ageConfirmed18Plus?: boolean,
+  ) {
     return rpc(async () => {
+      if (ageConfirmed18Plus !== true)
+        fail(403, 'AGE_CONFIRMATION_REQUIRED', '18歳以上であることをご自身で確認してください。');
       if (this.records.get('challenge'))
         fail(409, 'CHALLENGE_EXISTS', 'もう一度ログインしてください。');
       requireValue(
         provider === 'apple'
-          ? this.env.APPLE_AUDIENCE
+          ? appleConfigured(this.env)
           : this.env.GOOGLE_CLIENT_ID &&
               this.env.GOOGLE_CLIENT_SECRET &&
+              this.env.PROVIDER_TOKEN_KEY &&
               this.env.API_ORIGIN &&
               this.env.APP_RETURN_URL,
       );
@@ -48,6 +61,8 @@ export class AuthSession extends DurableObject<Bindings> {
         verifierHash,
         expires: Date.now() + 300_000,
         consumed: false,
+        ageConfirmationVersion: communityPolicy.ageConfirmationVersion,
+        ageConfirmedAt: new Date().toISOString(),
       };
       this.records.put('challenge', challenge);
       await this.ctx.storage.setAlarm(challenge.expires + 60_000);
@@ -61,7 +76,8 @@ export class AuthSession extends DurableObject<Bindings> {
           scope: 'openid',
           state: id,
           nonce: challenge.nonce,
-          prompt: 'select_account',
+          access_type: 'offline',
+          prompt: 'consent select_account',
         }).toString();
         authorizationURL = url.href;
       }
@@ -74,22 +90,36 @@ export class AuthSession extends DurableObject<Bindings> {
     });
   }
   private challenge(): Challenge {
+    if (this.records.get('account-deleted'))
+      fail(401, 'ACCOUNT_UNAVAILABLE', 'このアカウントは利用できません。');
     const c = this.records.get<Challenge>('challenge');
     if (!c || c.consumed || c.expires <= Date.now())
       fail(401, 'LOGIN_EXPIRED', 'ログインの有効時間が過ぎました。もう一度お試しください。');
+    this.requireAdultDeclaration(c);
     return c!;
+  }
+  private requireAdultDeclaration(challenge: Challenge | undefined) {
+    // Self-declaration is an eligibility statement, not verified age or identity.
+    // Reject pre-policy challenges as well as requests that omit the declaration.
+    if (
+      challenge?.ageConfirmationVersion !== communityPolicy.ageConfirmationVersion ||
+      !challenge.ageConfirmedAt
+    )
+      fail(403, 'AGE_CONFIRMATION_REQUIRED', '18歳以上であることをご自身で確認してください。');
   }
   private async profile(provider: 'apple' | 'google', sub: string): Promise<Profile> {
     // Identity is issuer+subject, never an email address. An email change cannot merge accounts.
     const userId = 'u_' + (await sha(provider + '\0' + sub));
+    const deletedHash = await sha(userId);
     const bucket = parseInt(userId.slice(2, 4), 16);
     await this.env.HOME.batch([
       this.env.HOME.prepare(
-        'INSERT OR IGNORE INTO profiles(user_id,bucket_id,display_name,created_at) VALUES(?,?,?,?)',
-      ).bind(userId, bucket, 'あなた', new Date().toISOString()),
+        `INSERT OR IGNORE INTO profiles(user_id,bucket_id,display_name,created_at)
+         SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM deleted_accounts WHERE user_id_hash=?)`,
+      ).bind(userId, bucket, 'あなた', new Date().toISOString(), deletedHash),
       this.env.HOME.prepare(
-        'INSERT OR IGNORE INTO quota_accounts(user_id,limit_bytes) VALUES(?,?)',
-      ).bind(userId, capturePolicy.quotaBytes),
+        "INSERT OR IGNORE INTO quota_accounts(user_id,limit_bytes) SELECT user_id,? FROM profiles WHERE user_id=? AND status='ACTIVE'",
+      ).bind(capturePolicy.quotaBytes, userId),
     ]);
     const profile = await this.env.HOME.prepare(
       'SELECT user_id,display_name,is_private,status,session_epoch FROM profiles WHERE user_id=?',
@@ -98,6 +128,11 @@ export class AuthSession extends DurableObject<Bindings> {
       .first<Profile>();
     if (!profile || profile.status !== 'ACTIVE')
       fail(403, 'ACCOUNT_UNAVAILABLE', 'このアカウントは利用できません。');
+    await this.env.HOME.prepare(
+      "UPDATE profiles SET auth_provider=? WHERE user_id=? AND status='ACTIVE'",
+    )
+      .bind(provider, userId)
+      .run();
     return profile!;
   }
   private async credentials(profile: Profile) {
@@ -132,20 +167,36 @@ export class AuthSession extends DurableObject<Bindings> {
         : undefined,
     };
   }
-  exchangeApple(idToken: string) {
+  exchangeApple(idToken: string, authorizationCode: string) {
+    let stage = 'challenge';
     return rpc(async () => {
       const c = this.challenge();
       if (c.provider !== 'apple') fail(400, 'WRONG_PROVIDER', 'ログインをやり直してください。');
+      stage = 'native_identity';
       const sub = await verifyIdentity('apple', idToken, c.nonce, this.env);
+      stage = 'authorization_code';
+      const providerToken = await exchangeAppleCode(this.env, authorizationCode, c.nonce, sub);
+      stage = 'profile';
       const profile = await this.profile('apple', sub);
+      stage = 'provider_storage';
+      await storeProviderToken(this.env, profile.user_id, 'apple', providerToken);
+      stage = 'session';
       const creds = await this.credentials(profile);
+      await registerAuthSession(this.env, profile.user_id, c.id);
       this.records.atomic(() => {
+        if (this.records.get('account-deleted'))
+          fail(403, 'ACCOUNT_UNAVAILABLE', 'このアカウントは利用できません。');
         const current = this.challenge();
         this.records.put('challenge', { ...current, consumed: true });
         this.records.put('session', creds.session);
       });
       await this.ctx.storage.setAlarm(creds.session.refreshExpires);
       return this.response(c.id, creds, profile);
+    }).then((result) => {
+      // Fixed stage/error codes only: never record tokens, nonces, identities or request data.
+      if (!result.ok)
+        console.warn(JSON.stringify({ event: 'apple_login_failed', stage, code: result.code }));
+      return result;
     });
   }
   googleCallback(code: string) {
@@ -165,12 +216,15 @@ export class AuthSession extends DurableObject<Bindings> {
         }),
       });
       if (!response.ok) fail(401, 'GOOGLE_LOGIN_FAILED', 'Googleログインを完了できませんでした。');
-      const result = await response.json<{ id_token?: string }>();
-      if (!result.id_token) fail(401, 'INVALID_IDENTITY', 'ログインをやり直してください。');
+      const result = await response.json<{ id_token?: string; refresh_token?: string }>();
+      if (!result.id_token || !result.refresh_token)
+        fail(401, 'INVALID_IDENTITY', 'ログインをやり直してください。');
       const sub = await verifyIdentity('google', result.id_token!, c.nonce, this.env);
       const profile = await this.profile('google', sub);
+      await storeProviderToken(this.env, profile.user_id, 'google', result.refresh_token!);
       const handoff = token(),
         hash = await sha(handoff);
+      await registerAuthSession(this.env, profile.user_id, c.id);
       this.records.atomic(() => {
         const current = this.challenge();
         this.records.put('challenge', { ...current, consumed: true });
@@ -190,6 +244,7 @@ export class AuthSession extends DurableObject<Bindings> {
         used: boolean;
       }>('handoff');
       const c = this.records.get<Challenge>('challenge');
+      this.requireAdultDeclaration(c);
       if (
         !handoff ||
         handoff.used ||
@@ -199,8 +254,13 @@ export class AuthSession extends DurableObject<Bindings> {
       )
         fail(401, 'INVALID_HANDOFF', 'ログインをやり直してください。');
       const creds = await this.credentials(handoff!.profile);
+      await registerAuthSession(this.env, handoff!.profile.user_id, c!.id);
       this.records.atomic(() => {
-        if (this.records.get<{ used: boolean }>('handoff')?.used)
+        if (
+          this.records.get('account-deleted') ||
+          !this.records.get('handoff') ||
+          this.records.get<{ used: boolean }>('handoff')?.used
+        )
           fail(401, 'HANDOFF_USED', 'ログインをやり直してください。');
         this.records.put('handoff', { ...handoff, used: true });
         this.records.put('session', creds.session);
@@ -262,7 +322,22 @@ export class AuthSession extends DurableObject<Bindings> {
       return { loggedOut: true };
     });
   }
+  purgeAccount(userId: string) {
+    return rpc(() => {
+      const session = this.records.get<Session>('session');
+      const handoff = this.records.get<{ profile: Profile }>('handoff');
+      if ((session && session.userId !== userId) || (handoff && handoff.profile.user_id !== userId))
+        fail(409, 'OWNERSHIP_MISMATCH', 'アカウント情報が一致しません。');
+      this.records.atomic(() => {
+        for (const row of this.records.all('')) this.records.delete(row.key);
+        // Boolean marker blocks a suspended OAuth exchange from recreating its session.
+        this.records.put('account-deleted', true);
+      });
+      return { purged: true };
+    });
+  }
   async alarm() {
+    if (this.records.get('account-deleted')) return;
     const s = this.records.get<Session>('session');
     if (s && s.refreshExpires > Date.now()) {
       await this.ctx.storage.setAlarm(s.refreshExpires);

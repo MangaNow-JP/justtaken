@@ -45,7 +45,27 @@ export async function verifyIdentity(
     });
     if (payload.azp && payload.azp !== audience) throw new Error('Unexpected authorized party');
     return assertIdentityClaims(payload, nonce);
-  } catch {
+  } catch (error) {
+    const codes = [
+      'ERR_JWT_EXPIRED',
+      'ERR_JWT_CLAIM_VALIDATION_FAILED',
+      'ERR_JWS_SIGNATURE_VERIFICATION_FAILED',
+      'ERR_JWKS_TIMEOUT',
+      'ERR_JWKS_NO_MATCHING_KEY',
+    ];
+    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : '';
+    console.warn(
+      JSON.stringify({
+        event: 'identity_rejected',
+        provider,
+        reason:
+          error instanceof ApiError
+            ? 'identity_claims_mismatch'
+            : codes.includes(String(code))
+              ? code
+              : 'other',
+      }),
+    );
     throw new ApiError(
       401,
       'INVALID_IDENTITY',

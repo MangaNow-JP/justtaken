@@ -1,0 +1,8 @@
+{
+  "teamId": "CQC25QD69U",
+  "bundleIdentifier": "app.justtaken.ios",
+  "version": "1.0.0",
+  "apiOrigin": "https://justtaken.app",
+  "provisioningProfile": "JustTaken App Store Isolated 2026",
+  "signingCertificate": "993165B5C91495825706360AD9D8F3D3F393487F"
+}

@@ -28,6 +28,10 @@ public class JustTakenCaptureModule: Module {
       return try CaptureStore.shared.read(handle)
     }
     AsyncFunction("enroll") { (installationId: String, challenge: String) async throws -> [String: String] in try await CaptureProof.shared.enroll(installationId, challenge: challenge) }
+    AsyncFunction("forgetInstallation") { (installationId: String) in
+      guard UUID(uuidString: installationId) != nil else { return }
+      for suffix in [".key", ".proof", ".challenge"] { UserDefaults.standard.removeObject(forKey: "JustTakenAttest." + installationId + suffix) }
+    }
     AsyncFunction("prepareProof") { (handle: String) async throws -> [String: Any] in try await CaptureProof.shared.prepare(handle) }
     AsyncFunction("upload") { (handle: String, assetId: String, accessToken: String) async throws in try await CaptureStore.shared.upload(handle, assetId: assetId, accessToken: accessToken) }
     AsyncFunction("discard") { (handle: String) in try CaptureStore.shared.discard(handle) }

@@ -4,12 +4,18 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:878
   /\/$/,
   '',
 );
-export type Profile = { userId: string; displayName: string; isPrivate: boolean };
+export type Profile = {
+  userId: string;
+  displayName: string;
+  isPrivate: boolean;
+  moderator?: boolean;
+};
 export type Credentials = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
   profile?: Profile;
+  appleUser?: string;
 };
 export class APIError extends Error {
   constructor(
@@ -130,7 +136,7 @@ async function refresh() {
         refreshToken: previous.refreshToken,
       });
       if (credentials !== previous) return;
-      await saveCredentials({ ...next, profile: previous.profile });
+      await saveCredentials({ ...next, profile: previous.profile, appleUser: previous.appleUser });
     } catch (error) {
       if (error instanceof APIError && error.status === 401) await saveCredentials(null);
       throw error;

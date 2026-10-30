@@ -103,6 +103,12 @@ async function main() {
       '0004_standalone_proofs.sql',
       '0005_external_anchors.sql',
       '0006_early_access.sql',
+      '0007_community_safety.sql',
+      '0008_account_deletion.sql',
+      '0009_moderation_audit.sql',
+      '0010_support_account_deletion.sql',
+      '0011_adult_self_declaration.sql',
+      '0012_apple_lifecycle_and_review.sql',
     ]) {
       const source = await readFile('workers/api/migrations/home/' + name, 'utf8');
       // Keep trigger blocks together; D1 exec accepts one complete statement per line.

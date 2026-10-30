@@ -113,7 +113,7 @@ export function certifyCapture(c: LocalCapture, progress: (p: UploadPhase) => vo
 export function postCapture(
   c: LocalCapture,
   caption: string,
-  visibility: 'private' | 'followers',
+  visibility: 'private' | 'followers' | 'public',
   progress: (p: UploadPhase) => void,
 ): Promise<ServerPost> {
   const operation = activeUpload
@@ -162,4 +162,17 @@ export async function listAccountDrafts(userId?: string): Promise<LocalCapture[]
   if (!raw) return [];
   const entry = JSON.parse(raw) as Enrollment;
   return drafts.filter((c) => c.session?.accountBindingId === entry.accountBindingId);
+}
+
+export async function clearAccountDrafts(userId: string) {
+  await activeUpload.catch(() => {});
+  if (preparing) await preparing.catch(() => {});
+  const drafts = await listAccountDrafts(userId);
+  for (const draft of drafts) await captureModule?.discard(draft.handle);
+  const key =
+    'justtaken.installation.' +
+    (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, API_URL + '\0' + userId));
+  const raw = await SecureStore.getItemAsync(key);
+  if (raw) await captureModule?.forgetInstallation(JSON.parse(raw).installationId);
+  await SecureStore.deleteItemAsync(key);
 }

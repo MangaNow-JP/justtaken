@@ -1,4 +1,9 @@
 import { capturePolicy } from '@justtaken/contracts/policy';
+import {
+  authChallengeInputSchema,
+  communityPolicy,
+  requiresCommunityConsent,
+} from '@justtaken/contracts/community';
 import { bodyJSON, fail, json, requireValue, rpc, unwrap, validID } from './http';
 import { integrityConfigured } from './proof';
 import { stage, uploadPart } from './media';
@@ -9,7 +14,45 @@ import { verifierRoutes } from './verifier';
 import { anchorsEnabled, retryAnchors } from './anchors';
 import { earlyAccessRoutes, purgeExpiredEarlyAccess } from './early-access';
 import { applySecurityHeaders, securityTxtRoute } from './security-headers';
+import { communityRoutes, requireCommunityConsent } from './community';
+import {
+  accountDeletionRoutes,
+  processAccountDeletions,
+  registerInstallation,
+} from './account-deletion';
 import type { Bindings, Principal, Profile } from './types';
+import { appleConfigured } from './provider-tokens';
+import { accountRoutes, deletionStatus } from './accounts';
+import { isModerator, safetyRoutes } from './safety';
+// Bound a slow client upload so a deletion sweep has a finite drain window.
+function uploadBody(body: ReadableStream<Uint8Array>) {
+  const reader = body.getReader();
+  let timer: ReturnType<typeof setTimeout>;
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      timer = setTimeout(() => {
+        controller.error(new Error('UPLOAD_TIMEOUT'));
+        void reader.cancel().catch(() => {});
+      }, 300_000);
+    },
+    async pull(controller) {
+      try {
+        const next = await reader.read();
+        if (next.done) {
+          clearTimeout(timer);
+          controller.close();
+        } else controller.enqueue(next.value);
+      } catch (error) {
+        clearTimeout(timer);
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      clearTimeout(timer);
+      await reader.cancel(reason);
+    },
+  });
+}
 function splitToken(value: unknown) {
   if (typeof value !== 'string' || !/^[-A-Za-z0-9_]{36}\.[-A-Za-z0-9_]{43}$/.test(value))
     fail(401, 'INVALID_TOKEN', 'ログインが必要です。');
@@ -45,10 +88,11 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
   const sharedProof = await publicProofRoutes(request, env);
   if (sharedProof) return sharedProof;
   const auth = {
-    apple: !!env.APPLE_AUDIENCE,
+    apple: appleConfigured(env),
     google: !!(
       env.GOOGLE_CLIENT_ID &&
       env.GOOGLE_CLIENT_SECRET &&
+      env.PROVIDER_TOKEN_KEY &&
       env.API_ORIGIN &&
       env.APP_RETURN_URL
     ),
@@ -79,14 +123,26 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
       captureEnabled: verification,
       providers: auth,
       videoEnabled: true,
+      community: communityPolicy,
     });
   if (path === '/v1/auth/challenge' && method === 'POST') {
     const data = await bodyJSON(request, 4096);
+    if (data.ageConfirmed18Plus !== true)
+      fail(403, 'AGE_CONFIRMATION_REQUIRED', '18歳以上であることをご自身で確認してください。');
     if (!['apple', 'google'].includes(data.provider))
       fail(400, 'INVALID_PROVIDER', 'ログイン方法を選んでください。');
+    const parsed = authChallengeInputSchema.safeParse(data);
+    if (!parsed.success) fail(400, 'INVALID_LOGIN', 'ログイン情報を確認してください。');
     const id = crypto.randomUUID();
     return json(
-      unwrap(await env.AUTH.getByName(id).create(id, data.provider, data.codeChallenge)),
+      unwrap(
+        await env.AUTH.getByName(id).create(
+          id,
+          parsed.data.provider,
+          parsed.data.codeChallenge,
+          parsed.data.ageConfirmed18Plus,
+        ),
+      ),
       201,
     );
   }
@@ -117,8 +173,12 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
     if (!validID(data.challengeId))
       fail(400, 'INVALID_CHALLENGE', 'ログインをやり直してください。');
     const obj = env.AUTH.getByName(data.challengeId);
-    if (data.provider === 'apple' && typeof data.idToken === 'string')
-      return json(unwrap(await obj.exchangeApple(data.idToken)));
+    if (
+      data.provider === 'apple' &&
+      typeof data.idToken === 'string' &&
+      typeof data.authorizationCode === 'string'
+    )
+      return json(unwrap(await obj.exchangeApple(data.idToken, data.authorizationCode)));
     if (
       data.provider === 'google' &&
       typeof data.code === 'string' &&
@@ -134,8 +194,17 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
     const [id, secret] = splitToken(data.refreshToken);
     return json(unwrap(await env.AUTH.getByName(id).refresh(secret, id)));
   }
+  const deleted = await deletionStatus(request, env);
+  if (deleted) return deleted;
   if (!path.startsWith('/v1/')) fail(404, 'NOT_FOUND', 'APIが見つかりません。');
   const principal = await authenticate(request, env);
+  const account = await accountRoutes(request, env, principal);
+  if (account) return account;
+  const deletion = await accountDeletionRoutes(request, env, principal);
+  if (deletion) return deletion;
+  const community = await communityRoutes(request, env, principal);
+  if (community) return community;
+  if (requiresCommunityConsent(method, path)) await requireCommunityConsent(env, principal.userId);
   if (path === '/v1/me' && method === 'GET') {
     const profile = await env.HOME.prepare(
       'SELECT user_id,display_name,is_private FROM profiles WHERE user_id=?',
@@ -152,6 +221,7 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
         userId: profile!.user_id,
         displayName: profile!.display_name,
         isPrivate: !!profile!.is_private,
+        moderator: isModerator(env, principal.userId),
       },
       quota,
     });
@@ -168,6 +238,7 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
     if (!['ios', 'android'].includes(data.platform))
       fail(400, 'UNSUPPORTED_PLATFORM', 'iOSまたはAndroidアプリでご利用ください。');
     const id = crypto.randomUUID();
+    await registerInstallation(env, principal.userId, id);
     return json(
       unwrap(await env.CAPTURE.getByName(id).create(id, principal.userId, data.platform)),
       201,
@@ -217,16 +288,25 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
         await request.body.cancel();
         return json({ uploaded: true });
       }
-      const part = await uploadPart(
-        env.STAGING,
-        info.key,
-        info.uploadId,
-        number,
-        info.bytes,
-        digest,
-        request.body,
-      );
-      unwrap(await object.uploadedPart(principal.userId, id, assetId, number, digest, part));
+      try {
+        const part = await uploadPart(
+          env.STAGING,
+          info.key,
+          info.uploadId,
+          number,
+          info.bytes,
+          digest,
+          uploadBody(request.body!),
+        );
+        unwrap(await object.uploadedPart(principal.userId, id, assetId, number, digest, part));
+      } catch (error) {
+        const live = await object.asset(principal.userId, id, assetId);
+        if (!live.ok) {
+          await env.STAGING.resumeMultipartUpload(info.key, info.uploadId).abort();
+          await env.STAGING.delete(info.key);
+        }
+        throw error;
+      }
       return json({ uploaded: true });
     }
   }
@@ -245,7 +325,17 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
       return json(unwrap(await object.complete(principal.userId, id)));
     if (capture[4] && method === 'PUT') {
       const { asset, key } = unwrap(await object.asset(principal.userId, id, capture[4]));
-      await stage(env.STAGING, key, asset, request);
+      try {
+        const bounded = new Request(request, {
+          body: request.body ? uploadBody(request.body) : null,
+        });
+        await stage(env.STAGING, key, asset, bounded);
+        unwrap(await object.asset(principal.userId, id, capture[4]));
+      } catch (error) {
+        const live = await object.asset(principal.userId, id, capture[4]);
+        if (!live.ok) await env.STAGING.delete(key);
+        throw error;
+      }
       return json({ uploaded: true });
     }
     if (!capture[3] && method === 'GET')
@@ -253,6 +343,8 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
     if (!capture[3] && method === 'DELETE')
       return json(unwrap(await object.cancel(principal.userId, id)));
   }
+  const safety = await safetyRoutes(request, env, principal);
+  if (safety) return safety;
   const posts = await postRoutes(request, env, principal);
   if (posts) return posts;
   const proofs = await proofRoutes(request, env, principal);
@@ -305,6 +397,8 @@ export async function handleRequest(
 export default {
   fetch: handleRequest,
   async scheduled(_event: ScheduledController, env: Bindings, ctx: ExecutionContext) {
-    ctx.waitUntil(Promise.all([retryAnchors(env), purgeExpiredEarlyAccess(env)]));
+    ctx.waitUntil(
+      Promise.all([retryAnchors(env), purgeExpiredEarlyAccess(env), processAccountDeletions(env)]),
+    );
   },
 };
