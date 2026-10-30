@@ -1,6 +1,6 @@
 # JustTaken 新規アプリ登録・接続手順
 
-2026-10-30更新。`app.justtaken.dev` はローカル開発用です。AppleにはImakai Inc.（Team `CQC25QD69U`）の正式App ID `app.justtaken.ios` を登録し、Sign in with AppleとApp Attestを有効化しました。専用キーチェーンで署名した1.0.0 (1) のIPAを作成・検証し、App Store ConnectのJustTaken（`6828439735`）へアップロード済みです。審査提出、本番APIのApple接続、実機試験は未完了です。Cloudflareには専用の本番DB・非公開R2・Workerを作成し、`https://justtaken.app` で稼働しています。本番にはこのチェックアウト未反映のAndroid設定・認証戻り先があるため、次回更新前に同期が必要です。申請の進捗は [iOS初回申請](app-store/submission.md) を参照してください。
+2026-10-30更新。`app.justtaken.dev` はローカル開発用です。AppleにはImakai Inc.（Team `CQC25QD69U`）の正式App ID `app.justtaken.ios` を登録し、Sign in with AppleとApp Attestを有効化しました。専用キーチェーンで署名した1.0.0 (3) をApp Store ConnectのJustTaken（`6828439735`）へアップロードし、「提出準備完了」を確認済みです。本番APIのApple接続と暗号化した連携トークンの保管を実装・設定し、本人から実機Appleログイン成功の報告を受けました。撮影証明保存の実機エラーを調査中で、審査提出は未完了です。Cloudflareの本番DB・非公開R2・Workerは `https://justtaken.app` で稼働しています。本番にあったAndroid・認証・成人向け同意・退会・Web設定は回収してソースへ同期済みです。最新の提出条件は [iOS初回申請](app-store/submission.md) を参照してください。
 
 ## 設定するもの
 
