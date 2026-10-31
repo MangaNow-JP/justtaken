@@ -54,6 +54,7 @@ export const reportInputSchema = z
   .object({
     userId: id,
     postId: id.optional(),
+    commentId: id.optional(),
     reason: z.enum(reportReasons),
     details: z.string().trim().max(2000).default(''),
   })
@@ -74,6 +75,12 @@ export interface ConsentState {
 /** Safety, deletion and read-only routes remain available without consent. */
 export function requiresCommunityConsent(method: string, path: string): boolean {
   if (method !== 'POST' && method !== 'PUT') return false;
+  if (
+    /^\/v1\/users\/[^/]+\/follow$|^\/v1\/follow-requests\/|^\/v1\/posts\/[^/]+\/(like|save|comments)$/.test(
+      path,
+    )
+  )
+    return true;
   if (path === '/v1/installations' || path === '/v1/capture-sessions' || path === '/v1/posts')
     return true;
   if (/^\/v1\/installations\/[A-Za-z0-9_-]+\//.test(path)) return true;

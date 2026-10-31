@@ -109,6 +109,8 @@ async function main() {
       '0010_support_account_deletion.sql',
       '0011_adult_self_declaration.sql',
       '0012_apple_lifecycle_and_review.sql',
+      '0013_social.sql',
+      '0014_comment_reports.sql',
     ]) {
       const source = await readFile('workers/api/migrations/home/' + name, 'utf8');
       // Keep trigger blocks together; D1 exec accepts one complete statement per line.
@@ -624,7 +626,7 @@ async function main() {
       404,
       'nonfollower denied',
     );
-    await db.prepare("INSERT INTO followers VALUES('test_user','viewer','PENDING',1)").run();
+    await db.prepare("INSERT INTO followers(target_id,follower_id,state,revision) VALUES('test_user','viewer','PENDING',1)").run();
     equal(
       (await call('/v1/posts/' + postId, 'GET', undefined, viewerBearer)).status,
       404,

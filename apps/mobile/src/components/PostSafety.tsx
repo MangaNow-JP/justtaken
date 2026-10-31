@@ -16,10 +16,12 @@ const reasons = [
 ] as const;
 export function PostSafety({
   postId,
+  commentId,
   authorId,
   onChange,
 }: {
-  postId: string;
+  postId?: string;
+  commentId?: string;
   authorId: string;
   onChange: () => void;
 }) {
@@ -85,7 +87,14 @@ export function PostSafety({
             disabled={busy || !reason}
             onPress={() =>
               void act(async () => {
-                await api(`/v1/posts/${postId}/reports`, { reason, details });
+                if (postId) await api(`/v1/posts/${postId}/reports`, { reason, details });
+                else
+                  await api('/v1/reports', {
+                    userId: authorId,
+                    ...(commentId ? { commentId } : {}),
+                    reason,
+                    details,
+                  });
                 setMessage('通報を受け付けました。ご協力ありがとうございます。');
               })
             }

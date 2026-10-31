@@ -106,13 +106,33 @@ export async function communityRoutes(
       fail(400, 'INVALID_REPORT', '通報内容を確認してください。補足は2,000文字以内です。');
     const data = parsed.data;
     await activeTarget(env, data.userId, principal.userId);
+    let commentDetails: string | undefined;
+    if (data.commentId) {
+      if (data.postId) fail(400, 'INVALID_REPORT', '通報対象を一つ選んでください。');
+      const comment = await env.HOME.prepare(
+        'SELECT post_id,user_id,body FROM post_comments WHERE comment_id=?',
+      )
+        .bind(data.commentId)
+        .first<{ post_id: string; user_id: string; body: string }>();
+      if (!comment || comment.user_id !== data.userId)
+        fail(404, 'COMMENT_NOT_FOUND', 'コメントが見つかりません。');
+      await readPost(env, comment.post_id, principal.userId);
+      const blocked = await env.HOME.prepare(
+        'SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)',
+      )
+        .bind(principal.userId, data.userId, data.userId, principal.userId)
+        .first();
+      if (blocked) fail(404, 'COMMENT_NOT_FOUND', 'コメントが見つかりません。');
+      // Snapshot server-read evidence so a deleted comment can still be reviewed.
+      commentDetails = `コメントID: ${data.commentId}\n投稿ID: ${comment.post_id}\n本文: ${Array.from(comment.body).slice(0, 250).join('')}\n通報詳細: ${Array.from(data.details).slice(0, 500).join('')}`;
+    }
     if (data.postId) {
       const post = await readPost(env, data.postId, principal.userId);
       if (post.author_id !== data.userId)
         fail(404, 'POST_NOT_FOUND', '対象の投稿が見つかりません。');
     }
-    const targetKind = data.postId ? 'post' : 'user';
-    const targetId = data.postId ?? data.userId;
+    const targetKind = data.postId ? 'post' : data.commentId ? 'comment' : 'user';
+    const targetId = data.postId ?? data.commentId ?? data.userId;
     const findExisting = () =>
       env.HOME.prepare(
         'SELECT report_id FROM user_reports WHERE reporter_id=? AND target_kind=? AND target_id=? AND reason=?',
@@ -124,8 +144,8 @@ export async function communityRoutes(
     const now = Date.now();
     // The rate check and write are one SQLite statement, so concurrent requests cannot overrun it.
     const result = await env.HOME.prepare(
-      `INSERT OR IGNORE INTO user_reports(report_id,reporter_id,target_user_id,target_kind,target_id,post_id,reason,details,created_at)
-       SELECT ?,?,?,?,?,?,?,?,?
+      `INSERT OR IGNORE INTO user_reports(report_id,reporter_id,target_user_id,target_kind,target_id,post_id,comment_id,reason,details,created_at)
+       SELECT ?,?,?,?,?,?,?,?,?,?
        WHERE EXISTS(SELECT 1 FROM profiles WHERE user_id=? AND status='ACTIVE')
          AND EXISTS(SELECT 1 FROM profiles WHERE user_id=? AND status='ACTIVE')
          AND (SELECT COUNT(*) FROM user_reports WHERE reporter_id=? AND created_at>=?)<20
@@ -138,8 +158,9 @@ export async function communityRoutes(
         targetKind,
         targetId,
         data.postId ?? null,
+        data.commentId ?? null,
         data.reason,
-        data.details,
+        commentDetails ?? data.details,
         new Date(now).toISOString(),
         principal.userId,
         data.userId,

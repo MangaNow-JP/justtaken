@@ -57,14 +57,12 @@ actor CaptureProof {
   }
   func prepare(_ handle: String) async throws -> [String: Any] {
     guard DCAppAttestService.shared.isSupported else { throw CaptureProofError.unsupported }
-    if let saved = try CaptureStore.shared.savedProof(handle) { return saved }
+    if let saved = try CaptureStore.shared.savedProof(handle), saved["canonicalization"] as? String == "jcs-native-v1" { return saved }
     guard !working else { throw CaptureProofError.busy }; working = true; defer { working = false }
     let manifest = try CaptureStore.shared.manifest(handle)
     guard let installation = manifest["installationId"] as? String,
           let key = UserDefaults.standard.string(forKey: "JustTakenAttest." + installation + ".key") else { throw CaptureProofError.missingKey }
-    // All manifest values are ASCII IDs, integer image properties and UTC timestamps.
-    // Foundation sorted keys + unescaped slashes are JCS-equivalent for this native-owned subset.
-    let canonical = try JSONSerialization.data(withJSONObject: manifest, options: [.sortedKeys, .withoutEscapingSlashes])
+    let canonical = try CaptureCanonicalJSON.encode(manifest)
     var payload = Data("CAPTURE_SNS_V1\0".utf8); payload.append(canonical)
     let hash = Data(SHA256.hash(data: payload))
     let assertion: Data = try await withCheckedThrowingContinuation { continuation in
@@ -72,7 +70,7 @@ actor CaptureProof {
         if let data { continuation.resume(returning: data) } else { continuation.resume(throwing: error ?? CaptureProofError.invalid) }
       }
     }
-    let result: [String: Any] = ["manifest": manifest, "proof": ["keyId": key, "assertion": assertion.base64EncodedString()]]
+    let result: [String: Any] = ["canonicalization": "jcs-native-v1", "manifest": manifest, "proof": ["keyId": key, "assertion": assertion.base64EncodedString()]]
     try CaptureStore.shared.saveProof(handle, result: result)
     return result
   }

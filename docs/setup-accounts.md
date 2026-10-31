@@ -1,6 +1,6 @@
 # JustTaken 新規アプリ登録・接続手順
 
-2026-10-30更新。`app.justtaken.dev` はローカル開発用です。AppleにはImakai Inc.（Team `CQC25QD69U`）の正式App ID `app.justtaken.ios` を登録し、Sign in with AppleとApp Attestを有効化しました。専用キーチェーンで署名した1.0.0 (3) をApp Store ConnectのJustTaken（`6828439735`）へアップロードし、「提出準備完了」を確認済みです。本番APIのApple接続と暗号化した連携トークンの保管を実装・設定し、本人から実機Appleログイン成功の報告を受けました。撮影証明保存の実機エラーを調査中で、審査提出は未完了です。Cloudflareの本番DB・非公開R2・Workerは `https://justtaken.app` で稼働しています。本番にあったAndroid・認証・成人向け同意・退会・Web設定は回収してソースへ同期済みです。最新の提出条件は [iOS初回申請](app-store/submission.md) を参照してください。
+2026-10-31更新。SNS機能と撮影署名の正規化修正を含むビルド4を作成済みですが、実機への更新とAppleへのアップロードはMacのロック解除・再接続待ちです。`app.justtaken.dev` はローカル開発用です。AppleにはImakai Inc.（Team `CQC25QD69U`）の正式App ID `app.justtaken.ios` を登録し、Sign in with AppleとApp Attestを有効化しました。専用キーチェーンで署名した1.0.0 (3) をApp Store ConnectのJustTaken（`6828439735`）へアップロードし、「提出準備完了」を確認済みです。本番APIのApple接続と暗号化した連携トークンの保管を実装・設定し、本人から実機Appleログイン成功の報告を受けました。撮影証明保存エラーにつながる署名の並び順の不一致を修正し、Swiftとサーバーの一致を検証しました。修正版の実機受入試験と審査提出は未完了です。Cloudflareの本番DB・非公開R2・Workerは `https://justtaken.app` で稼働しています。本番にあったAndroid・認証・成人向け同意・退会・Web設定は回収してソースへ同期済みです。最新の提出条件は [iOS初回申請](app-store/submission.md) を参照してください。
 
 ## 設定するもの
 

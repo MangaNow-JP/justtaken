@@ -23,3 +23,7 @@ execFileSync(process.execPath, ['--import', 'tsx', 'workers/api/test/accounts-in
   cwd: root,
   stdio: 'inherit',
 });
+execFileSync(process.execPath, ['--import', 'tsx', 'workers/api/test/social-integration.mts'], {
+  cwd: root,
+  stdio: 'inherit',
+});

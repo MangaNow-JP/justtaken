@@ -8,6 +8,7 @@ import { bodyJSON, fail, json, requireValue, rpc, unwrap, validID } from './http
 import { integrityConfigured } from './proof';
 import { stage, uploadPart } from './media';
 import { postRoutes } from './posts';
+import { socialRoutes } from './social';
 import { proofRoutes, publicProofRoutes } from './proofs';
 import { publicProofKeys } from './proof-keys';
 import { verifierRoutes } from './verifier';
@@ -347,6 +348,8 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
   if (safety) return safety;
   const posts = await postRoutes(request, env, principal);
   if (posts) return posts;
+  const social = await socialRoutes(request, env, principal);
+  if (social) return social;
   const proofs = await proofRoutes(request, env, principal);
   if (proofs) return proofs;
   return fail(404, 'NOT_FOUND', 'APIが見つかりません。');
@@ -383,6 +386,28 @@ export async function handleRequest(
     return route(request, env);
   });
   const requestId = crypto.randomUUID();
+  if (!result.ok && /\/captures\/|^\/v1\/proofs/.test(new URL(request.url).pathname))
+    console.warn(
+      JSON.stringify({
+        event: 'capture_request_failed',
+        requestId,
+        code: result.code,
+        status: result.status,
+        operation:
+          [
+            'commit',
+            'complete',
+            'original',
+            'thumbnail',
+            'poster',
+            'shares',
+            'anchor',
+            'multipart',
+            'uploaded',
+          ].find((action) => new URL(request.url).pathname.endsWith('/' + action)) ??
+          'capture-or-proof',
+      }),
+    );
   const response = result.ok
     ? result.value
     : json({ error: { code: result.code, message: result.message, requestId } }, result.status);

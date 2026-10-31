@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, View, StyleSheet, RefreshControl } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ScrollView, Text, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { PostInteractions } from '../components/PostInteractions';
 import { api, API_URL, accessToken } from '../services/api';
 import { type ServerPost } from '../services/capture';
 import { Button, EmptyState, Photo, Icon, Avatar } from '../components/UI';
@@ -13,13 +14,21 @@ export function Posts({
   revision = 0,
   activeView = true,
   onCamera,
+  onUser = () => {},
+  endpoint,
+  header,
 }: {
-  scope?: 'feed' | 'mine';
+  scope?: 'feed' | 'mine' | 'following';
   revision?: number;
   activeView?: boolean;
   onCamera: () => void;
+  onUser?: (id: string) => void;
+  endpoint?: string;
+  header?: ReactNode;
 }) {
   const [playing, setPlaying] = useState<string | null>(null);
+  const generation = useRef(0);
+  const [feed, setFeed] = useState<'feed' | 'following'>('feed');
   useEffect(() => {
     if (!activeView) setPlaying(null);
   }, [activeView]);
@@ -28,13 +37,27 @@ export function Posts({
     [error, setError] = useState(''),
     [cursor, setCursor] = useState<string | null>(null);
   async function load(more = false) {
+    const request = ++generation.current;
     setPlaying(null);
     setBusy(true);
     setError('');
     try {
-      const result = await api<{ posts: ServerPost[]; nextCursor: string | null }>(
-        `/v1/feed?scope=${scope}${more && cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`,
+      const base = endpoint ?? `/v1/feed?scope=${scope === 'feed' ? feed : scope}`;
+      const data = await api<{
+        posts?: ServerPost[];
+        post?: ServerPost;
+        nextCursor: string | null;
+      }>(
+        base +
+          (more && cursor
+            ? (base.includes('?') ? '&' : '?') + 'cursor=' + encodeURIComponent(cursor)
+            : ''),
       );
+      if (generation.current !== request) return;
+      const result = {
+        posts: data.posts ?? (data.post ? [data.post] : []),
+        nextCursor: data.nextCursor ?? null,
+      };
       setPosts((current) =>
         more
           ? [
@@ -45,14 +68,22 @@ export function Posts({
       );
       setCursor(result.nextCursor);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '投稿を読み込めませんでした。');
+      if (request === generation.current) {
+        setPosts([]);
+        setError(e instanceof Error ? e.message : '投稿を読み込めませんでした。');
+      }
     } finally {
-      setBusy(false);
+      if (request === generation.current) setBusy(false);
     }
   }
   useEffect(() => {
+    setPosts([]);
+    setCursor(null);
     void load();
-  }, [scope, revision]);
+    return () => {
+      generation.current++;
+    };
+  }, [scope, revision, endpoint, feed]);
   return (
     <ScrollView
       onScrollBeginDrag={() => setPlaying(null)}
@@ -61,10 +92,34 @@ export function Posts({
         <RefreshControl refreshing={busy} onRefresh={() => void load()} tintColor={c.ink} />
       }
     >
-      <View style={s.heading}>
-        <Text style={s.title}>{scope === 'mine' ? 'あなたの投稿' : 'ホーム'}</Text>
-        <Icon name="shield" size={18} />
-      </View>
+      {header}
+      {!endpoint && (
+        <View style={s.heading}>
+          <Text style={s.title}>{scope === 'mine' ? 'あなたの投稿' : 'ホーム'}</Text>
+          <Icon name="shield" size={18} />
+        </View>
+      )}
+      {!endpoint && scope === 'feed' && (
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {(['feed', 'following'] as const).map((value) => (
+            <Pressable
+              key={value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: feed === value }}
+              onPress={() => setFeed(value)}
+              style={{
+                padding: 12,
+                borderRadius: 20,
+                backgroundColor: feed === value ? c.pale : c.white,
+              }}
+            >
+              <Text style={{ color: c.ink }}>
+                {value === 'feed' ? 'みんなの投稿' : 'フォロー中'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {!!error && (
         <View style={s.notice}>
           <Text style={s.small}>{error}</Text>
@@ -75,8 +130,13 @@ export function Posts({
       )}
       {!posts.length && !busy && !error && (
         <>
-          <EmptyState icon="camera" title="最初の瞬間を、残そう。">
-            投稿した写真・動画はここに表示されます。
+          <EmptyState
+            icon="camera"
+            title={endpoint ? '表示できる投稿はありません' : '最初の瞬間を、残そう。'}
+          >
+            {endpoint
+              ? '公開範囲やフォローの状態によって表示される投稿が変わります。'
+              : '投稿した写真・動画はここに表示されます。'}
           </EmptyState>
           <Button icon="camera" onPress={onCamera}>
             写真・動画を撮る
@@ -91,6 +151,7 @@ export function Posts({
           active={playing === post.post_id}
           onPlay={() => setPlaying(post.post_id)}
           onStop={() => setPlaying(null)}
+          onUser={onUser}
         />
       ))}
       {!!cursor && (
@@ -107,12 +168,14 @@ function PostCard({
   active,
   onPlay,
   onStop,
+  onUser,
 }: {
   post: ServerPost;
   onChange: () => void;
   active: boolean;
   onPlay: () => void;
   onStop: () => void;
+  onUser: (id: string) => void;
 }) {
   const { profile } = useAuth();
   const [originalFormat, setOriginalFormat] = useState<{
@@ -167,13 +230,18 @@ function PostCard({
   }
   return (
     <View style={s.card}>
-      <View style={s.author}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${post.display_name}のプロフィール`}
+        onPress={() => onUser(post.author_id)}
+        style={s.author}
+      >
         <Avatar initial={post.display_name.slice(0, 1)} />
         <View>
           <Text style={s.name}>{post.display_name}</Text>
           <Text style={s.small}>{new Date(post.created_at).toLocaleString('ja-JP')}</Text>
         </View>
-      </View>
+      </Pressable>
       {source ? (
         kind === 'video' ? (
           <VideoPreview
@@ -231,6 +299,7 @@ function PostCard({
         </Text>
       )}
       <Text style={s.caption}>{post.caption || 'いま撮った、その瞬間を。'}</Text>
+      <PostInteractions post={post} onUser={onUser} />
       {post.state !== 'PUBLISHED' && (
         <View style={s.notice}>
           <Text style={s.small}>

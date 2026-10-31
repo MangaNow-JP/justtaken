@@ -1,70 +1,44 @@
-# 開発状況 — 2026-10-25 / 第三者時刻・公開監査ログ付き撮影証明
+# 開発状況 — 2026-10-31
 
-## 実装・検証
+## 今回のSNS機能
 
-| 項目             | 状況                                                                                                                                                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ログイン画面     | Apple / Google導線、接続状態、未設定時の案内。WebとiOS Simulatorで確認                                                                                                                                      |
-| 認証             | OIDC署名/issuer/audience/nonce、Googleサーバーcode交換とPKCE handoff、SecureStore、15分access / 30日refresh、rotation/reuse検出、全端末logoutを実装                                                         |
-| native撮影認証   | シャッター前nonce束縛、native manifest、iOS App Attest登録/assertion、Android Standard Integrity requestHashを実装。実サービス/実機の検証は未実施                                                           |
-| サーバー撮影認証 | Apple attestation chain/app/key/challenge/環境、assertion署名/counter、Google decode/verdict照合を実装。Apple chainはnode-app-attest 1.0.1に有効期限/CA/CBOR制約を追加                                      |
-| セッション管理   | SQLite DOでinstallationごとにnonce/counter/再送/期限を管理。外部await後に同期transactionで再確認                                                                                                            |
-| 画像検証・保存   | private R2へSHA-256条件付きPUT。v3はJPEG/HEIF/DNG原本全体を保持し、不変オブジェクトの構造・向き・HDR・RAW・GPSを検査。JPEG/HEIF128MiB、DNG512MiB、2GiB開発枠                                                |
-| 動画             | 前後カメラ・音声/無音・60秒/最大4K/512MiB、パススルー、音声の再圧縮なし・ポスター・撮影認証・投稿・タップ再生。MP4の構造、codec、8/10-bit/SDR/HLG/PQ、向き、寸法、時間、音声、offset、hashを照合            |
-| GPS設定          | 初期OFF、設定でON/OFF保存、撮影画面の前景だけで測位。写真・動画の開始位置をprivate manifestへ署名。本人限定の確認・座標の非公開化を実装。実機測位は未確認。詳細は[撮影位置](capture-location.md) |
-| 検証票           | ES256 JWS。payload・確認日時を先に固定し、再送では保存済みreceiptを返す。公開JWK endpointあり                                                                                                               |
-| 投稿             | caption/公開範囲、同一capture一投稿、内容確認待ち、条件付き公開、フィード、閲覧ACL、media grant/Range/HEAD、削除・再公開拒否                                                                                |
-| モバイル投稿     | 撮影後commit、送信進捗、下書き再送、投稿一覧、撮影記録、削除、アカウント別下書き                                                                                                                            |
-| iOSビルド        | HEIF/RAW/ProRAW撮影・HDR表示・動画を含むXcode / iOS 26.5 Simulator Debugビルド成功。センサーとApp Attestは実機試験が必要                                                                                    |
-| 写真形式検証     | ImageIOのHEIF/HDR JPEG（4032×3024含む）、合成Bayer/Linear DNGのデコードを確認。旧v2のJPEG画素/ICC保持試験も維持                                                                                             |
-| Android          | CameraX 1.6.2とAndroid API jarでHEIF Camera2・RAW/Ultra HDR CameraX・保存コードをKotlin 2.2.0でコンパイル。Expoの橋渡し部分はcompile-only stub。APK全体と実機は未確認。faststartはJVM実行とserver検査に成功 |
-| 単体テスト       | manifest/期限/ACL/重複JSON/Identity claims/Integrity verdict/JPEG/Range/MP4/音声/60秒境界等89件                                                                                                             |
-| 結合テスト       | 実workerd・SQLite DO・D1・R2で532 assertions成功。HEIF/RAW/HDR写真・9MiB RAW分割送信・原寸JPEG・4K HEVC/HDR・音声あり/無音の署名、分割送信/再開/取消/期限、検証票、投稿、原本のバイト一致、Range/ACLを検査  |
-| 外部環境         | Cloudflareに専用D1・非公開R2 2個・SQLite DO・本番鍵・再試行cronを配置。https://justtaken.app でLPと公開API検査28項目とR2バイト一致を確認。Apple/Googleアプリ登録は未設定                                    |
+実際のアカウントとD1に接続した機能を追加しました。Webのサンプル操作とは別です。
 
-## 独立した撮影証明
+- 公開アカウントのフォロー、非公開アカウントへの申請、承認・拒否・取消、フォロー解除、フォロワー削除。
+- 表示名によるユーザー検索、プロフィール、フォロワー／フォロー中一覧、ユーザー別の投稿。
+- いいね／取消、コメント／削除／通報、本人専用の保存一覧。
+- アプリ内通知、未読バッジ、既読化。前景では30秒ごとに件数を取得し、一覧は再表示・下に引いて更新できます。APNs／FCMのプッシュ通知は未実装です。
+- 「みんなの投稿」「フォロー中」の切替。非公開化、フォロー解除、ブロック、停止・削除後は閲覧権限を再確認します。
+- コメントは500文字、送信IDによる重複防止、1分10件の制限。本人または投稿者が削除できます。通報は運営キューへ入り、本文の抜粋を証拠として保持します。
+- 起動ロゴの約0.9秒のアニメーション。「視差効果を減らす」有効時は省略します。
 
-SNSへの投稿なしで保存・署名・共有・失効。原本とJSON証明の書き出し、Web Workerによる受け手端末内の照合、独立した鍵ファイルでのオフライン検証を追加。SNS投稿削除は証明を残し、原本の削除は証明一覧から行う。ブラウザーで原本一致・1バイト変更・署名改ざんを確認。iOS Simulatorを再ビルド・起動済み。詳細は[撮影証明](capture-proof.md)。
+## 撮影証明の保存エラー
 
-第三者RFC 3161時刻認証、Rekor公開監査ログ、収録／整合性検証、受信者指紋・checkpoint保存、独立CLI、保留／再試行を実装。実第三者サービスへの合成commitment登録とブラウザ・CLI検証を完了。Cloudflareに本番デプロイと5分cronを登録済み。[詳細と限界](external-anchors.md)、[実環境の構成・検証・更新](cloudflare-production.md)。
+Swiftの `JSONSerialization.sortedKeys` は大文字小文字を区別しない順序を使用します。`clientCaptureId` と `clientCapturedAt` がサーバーのRFC 8785順序と逆になり、App Attest assertionの署名対象が一致しない不具合を再現しました。
 
-## 結合テストの境界
+ネイティブの整数・ASCII文字列に限定した正規化エンコーダーを追加し、古い形式の未確定署名を再利用しないよう変更しました。サーバーの署名検証は維持しています。期限切れの下書きは再撮影が必要です。エラー時は確認番号を表示し、サーバーには内容や座標を含めず処理段階とエラーコードを残します。
 
-`workers/api/test/fixture-worker.ts` はテスト専用の入口で、テストアカウント・テスト公開鍵をSQLite DOへ注入する。capture commit自体は実EC署名検証を通し、R2の実ストリーム/checksum、ES256 receipt、D1 transactionをローカルで動かす。
+JPEG HDR・HEIF・RAW・GPS・60秒HDR動画と特殊文字／整数の6ベクトルで、実際のSwiftコードとサーバーの正規化結果が完全一致しました。ただし、修正版を入れたiPhoneで撮影証明の保存が成功することは、別途実機確認が必要です。
 
-本番入口 `workers/api/src/index.ts` はfixtureをimportしない。HTTP経由の認証回避や検証済みデモデータはない。本物のApple/Google OAuth、Apple証明書発行、Play Integrity端末判定、カメラセンサー出力の試験には、専用アプリ登録と両OS実機が必要。
+## 検証
 
-## 本番前に残る実装
+- 型検査、単体テスト104件。
+- 実workerd／SQLite DO／D1／R2で撮影・証明・共有・権限532項目。
+- 認証・退会・通報64項目。退会で他人の投稿につけたいいね・コメント・保存と通知も削除。
+- SNS72項目。申請、権限、二重送信、ページング、ブロック、通知、通報、既存通報を残す移行。
+- `npm run test:ios-canonical` でSwiftとサーバーの正規化一致を確認（Macが必要）。
+- 署名付きiOS 1.0.0 (4) を作成。配布・実機・App Storeの最新状況は [申請状況](app-store/submission.md) を参照。
 
-- 実機撮影と認証の一巡、Androidビルド、画質/回転/再起動/通信断/期限切れ/OSバックグラウンド転送の確認。
-- JPEG/HEIF/RAWの全画素・動画の全フレーム・音声デコードと内容審査の運用接続。現状のserver inspectorは構造検証で、審査はPENDINGのまま保持し、自動許可しない。
-- 検証票署名を専用Worker/権限へ分離。現状はVERIFIEDの撮影記録からreceipt／公開用証明を同一Workerのsecretで署名する。公開鍵履歴・kidローテーション・失効リストは実装済み。独立した鍵保管・監査と運用を追加する。
-- Google Standard tokenのdecode後にDO確定前クラッシュするケースの再試行と、App Attest再登録・鍵破損時の導線を実機で検証。
-- ネイティブアップロードはforegroundのURLSession / HttpsURLConnection。OS background serviceは未実装。再起動後は下書きから手動再送。
-- D1 homeを4物理shardへ分割し、directory/bucket routing・移行・outbox配送を実装。現状は各環境の単一home DBとDO内projection retry。
-- 認証challenge・小さい捕捉記録・削除tombstoneの長期保持/GC、未参照R2オブジェクトの定期回収、運用監視・バックアップ/復元を追加。
-- フォロー操作、実コメント/いいね、通報/ブロック管理画面、プッシュ通知、アカウント削除、規約・ストア申請。
+## 既存の撮影・証明機能
 
-既存サンプルUIのコメント/いいね/保存は端末内の表示例。ユーザーの実投稿とサンプルを混ぜず、ログイン後はサーバーフィードへ切り替える。
+前後カメラの写真・最大60秒の動画、音声あり／なし、原本保持、対応端末のHEIF／RAW／HDR、任意のGPS記録、撮影前nonce、iOS App Attest／Android Play Integrity、SHA-256照合、投稿とは独立した撮影証明、共有・失効・原本書き出しを実装しています。第三者RFC 3161時刻認証・Rekor監査ログ・独立検証CLIもあります。撮影経路とファイルの一致を検証する仕組みで、写った場面の真偽を保証するものではありません。
 
-## 環境
+## 残る実機・運用確認
 
-Expo 58.0.19 / RN 0.88.0 / React 19.3.0 / TS 6.0.3 / Wrangler 4.152.0。iOS 18、Android API 31以上を設定。CocoaPodsは一時的に `/private/tmp/justtaken-gems` を利用。継続開発用のRuby/JDK/SDK環境は別途整える。
+- 修正版のiPhoneで、撮影→証明保存→原本照合→共有を確認。
+- 前後カメラ、音声、60秒停止、GPS、各対応写真形式、下書き再送を実機で確認。Androidの全体APKと実機は未確認です。
+- 運営者アカウントを指定し、公開前の投稿確認・通報対応を運用。審査前の投稿はPENDINGのままで、自動許可しません。
+- 実機スクリーンショット、レビュー用ログイン方法、価格・配信地域、コンテンツ配信権、SNS追加後のApp Privacyの確認を終えて審査提出。
+- バックグラウンド転送とプッシュ通知、鍵の独立保管・ローテーション運用、監視・バックアップ復元、長期GC。現在の転送は前景で、再起動後は下書きから再送します。
 
-再現コマンド・設定値は [README](../README.md) と [接続手順](setup-accounts.md)。ログと画面証跡はgitignore対象の `artifacts/` に置く。
-
-原画保持の詳細は[写真・動画](video-capture.md)。実AVFoundation出力の圧縮映像/音声を処理前後で比較し、サンプル数・SHA-256一致を確認。61秒入力は切り詰めず拒否。HEIF/RAW/ProRAW・HDRゲインマップのコードは追加済み。標準カメラ独自モードとの同一性、実機のセンサー出力・HDR表示は未検証。[写真原本](photo-originals.md)に範囲を記載。実カメラ・実マイクでの成功を意味しない。`original-check.log`、`original-integration.log`、`original-video-fixtures.log`、`original-photo-fixtures.log`、`ios-build-original.log`、`kotlin-original-compile.log`を保存。
-
-## 依存関係の監査
-
-最終 `npm audit` はHigh 5件（Expo CLI、その依存のnode-forge 1.4.0 / Zod 3、および上位パッケージ）を報告。サーバーのmanifest検証は修正版Zod 4.6.7、OIDCはjose、App Attestはnode-app-attestを使用し、Expo CLIの署名検証を利用しない。npmが提案するExpo 54へのダウングレードやZod 3→4の強制置換はCLIを壊すため未実施。開発ツールの公式互換更新を追跡し、開発サーバーを公開サービスとして運用しない。
-
-今回のログ: `extended-check.log`、`extended-integration.log`、`extended-photo-tests.log`、`ios-build-extended.log`、`extended-kotlin.log`、`extended-web-build.log`、`extended-worker-build.log`。画面証跡: `artifacts/justtaken-extended-photo-preview.png`。シミュレーターでは撮影を有効化せず、未対応表示を確認した。
-
-## LP・先行登録
-
-2026-10-25、承認デザインv2を実装して https://justtaken.app/ に公開。写真ギャラリー、撮影機能のタブ、FAQ、撮影証明への導線、D1への先行登録・取り消し・180日の保持期限を実装。案内メールの配信基盤は未接続。[詳細](landing-page.md)。
-
-## 運営表記・写真のロゴ
-
-運営を株式会社IMAKAIとして掲載。アプリの写真に取り外せるロゴ表示を追加し、端末内で設定を保持する。LPでも切り替えを体験できる。原本の再圧縮やロゴ焼き込みは行わず、書き出す原本は従来のまま。[範囲と検証](photo-watermark.md)。
+テスト用の認証注入は `workers/api/test/fixture-worker.ts` の隔離環境だけで使用し、本番には含めません。

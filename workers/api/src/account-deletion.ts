@@ -183,6 +183,13 @@ async function purgeRows(env: Bindings, user: string) {
       user,
       user,
     ),
+    env.HOME.prepare('DELETE FROM social_notifications WHERE recipient_id=? OR actor_id=?').bind(
+      user,
+      user,
+    ),
+    env.HOME.prepare('DELETE FROM post_comments WHERE user_id=?').bind(user),
+    env.HOME.prepare('DELETE FROM post_likes WHERE user_id=?').bind(user),
+    env.HOME.prepare('DELETE FROM post_saves WHERE user_id=?').bind(user),
     env.HOME.prepare('DELETE FROM posts WHERE author_id=?').bind(user),
     env.HOME.prepare('DELETE FROM followers WHERE target_id=? OR follower_id=?').bind(user, user),
     env.HOME.prepare('DELETE FROM blocks WHERE blocker_id=? OR blocked_id=?').bind(user, user),

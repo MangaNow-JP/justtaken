@@ -71,7 +71,7 @@ export async function safetyRoutes(request: Request, env: Bindings, principal: P
       'SELECT COUNT(*) AS pending,COALESCE(MAX(attempts),0) AS maxAttempts FROM account_deletions',
     ).first();
     const accountReports = await env.HOME.prepare(
-      `SELECT r.report_id,r.target_user_id,r.reason,r.details,r.created_at,u.display_name FROM user_reports r JOIN profiles u ON u.user_id=r.target_user_id WHERE r.target_kind='user' AND r.status IN ('received','under_review') AND u.status='ACTIVE' ORDER BY r.created_at LIMIT 20`,
+      `SELECT r.report_id,r.target_user_id,r.reason,r.details,r.created_at,u.display_name FROM user_reports r JOIN profiles u ON u.user_id=r.target_user_id WHERE r.target_kind IN ('user','comment') AND r.status IN ('received','under_review') AND u.status='ACTIVE' ORDER BY r.created_at LIMIT 20`,
     ).all();
     return json({
       accountReports: accountReports.results,
@@ -91,7 +91,7 @@ export async function safetyRoutes(request: Request, env: Bindings, principal: P
     )
       fail(400, 'DECISION_INVALID', '対応と理由を入力してください。');
     const report = await env.HOME.prepare(
-      `SELECT target_user_id FROM user_reports WHERE report_id=? AND target_kind='user' AND status IN ('received','under_review')`,
+      `SELECT target_user_id FROM user_reports WHERE report_id=? AND target_kind IN ('user','comment') AND status IN ('received','under_review')`,
     )
       .bind(accountReport[1])
       .first<{ target_user_id: string }>();

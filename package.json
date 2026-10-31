@@ -23,6 +23,7 @@
     "format": "prettier --write .",
     "schema": "node --import tsx scripts/generate-schema.ts",
     "test:integration": "node scripts/run-integration.mjs",
+    "test:ios-canonical": "node --import tsx scripts/test-capture-canonical.ts",
     "setup:local": "node scripts/setup-local.mjs && wrangler d1 migrations apply HOME --local --config workers/api/wrangler.jsonc",
     "build:proof-cli": "node scripts/build-proof-cli.mjs",
     "verify:production": "node scripts/verify-production.mjs",

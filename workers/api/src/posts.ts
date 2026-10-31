@@ -3,6 +3,7 @@ import { canViewPost, countGraphemes, type Visibility } from '@justtaken/contrac
 import { ApiError, bodyJSON, fail, json, requireValue, unwrap, validID } from './http';
 import { originalKey } from './media';
 import type { Bindings, Principal, Profile } from './types';
+import { socialPosts } from './social';
 export interface PostRow {
   post_id: string;
   author_id: string;
@@ -161,10 +162,16 @@ export async function postRoutes(
       selectPost +
         " WHERE u.status='ACTIVE' AND p.state NOT IN ('DELETED','HIDDEN') AND " +
         acl +
+        (url.searchParams.get('scope') === 'following'
+          ? " AND (p.author_id=? OR EXISTS(SELECT 1 FROM followers f WHERE f.target_id=p.author_id AND f.follower_id=? AND f.state='APPROVED'))"
+          : '') +
         ' AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.author_id) OR (b.blocker_id=p.author_id AND b.blocked_id=?)) AND (p.created_at<? OR (p.created_at=? AND p.post_id<?)) ORDER BY p.created_at DESC,p.post_id DESC LIMIT 21',
     )
       .bind(
         ...(own ? [principal.userId] : [principal.userId, principal.userId]),
+        ...(url.searchParams.get('scope') === 'following'
+          ? [principal.userId, principal.userId]
+          : []),
         principal.userId,
         principal.userId,
         at,
@@ -175,7 +182,7 @@ export async function postRoutes(
     const items = results.results.slice(0, 20),
       last = items.at(-1);
     return json({
-      posts: items,
+      posts: await socialPosts(env, items, principal.userId),
       nextCursor:
         results.results.length > 20 && last
           ? Buffer.from(JSON.stringify({ at: last.created_at, id: last.post_id })).toString(
@@ -198,7 +205,8 @@ export async function postRoutes(
     if (tombstone) return json({ deleted: true });
   }
   const p = await readPost(env, match[1], principal.userId);
-  if (!match[2] && method === 'GET') return json({ post: p });
+  if (!match[2] && method === 'GET')
+    return json({ post: (await socialPosts(env, [p], principal.userId))[0] });
   if (!match[2] && method === 'DELETE') {
     if (p.author_id !== principal.userId) fail(403, 'NOT_OWNER', 'この投稿は削除できません。');
     const retained = await env.HOME.prepare(

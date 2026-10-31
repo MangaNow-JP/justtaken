@@ -46,8 +46,10 @@ import { demoPosts, type DemoPost } from './src/data/demo';
 import { AuthProvider, useAuth } from './src/services/auth';
 import { Login } from './src/screens/Login';
 import { Posts } from './src/screens/Posts';
+import { Social, useUnreadNotifications, type SocialRoute } from './src/screens/Social';
+import { LaunchAnimation } from './src/components/LaunchAnimation';
 import { Proofs } from './src/screens/Proofs';
-import { logout } from './src/services/api';
+import { logout, APIError } from './src/services/api';
 import {
   commitCapture,
   certifyCapture,
@@ -61,6 +63,7 @@ type Tab = 'home' | 'explore' | 'camera' | 'notifications' | 'profile';
 type Sheet =
   | { kind: 'record' | 'comments' | 'more'; post: DemoPost }
   | { kind: 'about' | 'settings' | 'saved' | 'login' | 'posts' | 'proofs' | 'moderation' }
+  | { kind: 'social'; route: SocialRoute }
   | { kind: 'compose'; capture: LocalCapture };
 type DraftNote = { caption: string; visibility: 'followers' | 'private' | 'public' };
 const tabs: { id: Tab; icon: IconName; label: string }[] = [
@@ -80,12 +83,16 @@ export default function App() {
           </LocationPreferenceProvider>
         </WatermarkPreferenceProvider>
       </AuthProvider>
+      <LaunchAnimation />
     </SafeAreaProvider>
   );
 }
 function JustTaken() {
   const { width, height } = useWindowDimensions();
   const { profile, policy, consentRequired } = useAuth();
+  const { unread, setUnread } = useUnreadNotifications(profile?.userId);
+  const openUser = (userId: string) =>
+    setSheet({ kind: 'social', route: { kind: 'profile', userId } });
   const [postRevision, setPostRevision] = useState(0);
   const [sending, setSending] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase | null>(null);
@@ -161,27 +168,29 @@ function JustTaken() {
   const currentTitle =
     tab === 'explore' ? '見つける' : tab === 'notifications' ? 'お知らせ' : 'マイページ';
   const sheetTitle =
-    sheet?.kind === 'moderation'
-      ? '運営の確認待ち'
-      : sheet?.kind === 'proofs'
-        ? 'あなたの撮影証明'
-        : sheet?.kind === 'login'
-          ? 'ログイン'
-          : sheet?.kind === 'posts'
-            ? 'あなたの投稿'
-            : sheet?.kind === 'record'
-              ? '撮影記録'
-              : sheet?.kind === 'comments'
-                ? 'コメント'
-                : sheet?.kind === 'compose'
-                  ? '撮影証明・投稿'
-                  : sheet?.kind === 'saved'
-                    ? '保存した投稿'
-                    : sheet?.kind === 'settings'
-                      ? '設定'
-                      : sheet?.kind === 'more'
-                        ? '投稿について'
-                        : 'JustTakenについて';
+    sheet?.kind === 'social'
+      ? 'JustTaken'
+      : sheet?.kind === 'moderation'
+        ? '運営の確認待ち'
+        : sheet?.kind === 'proofs'
+          ? 'あなたの撮影証明'
+          : sheet?.kind === 'login'
+            ? 'ログイン'
+            : sheet?.kind === 'posts'
+              ? 'あなたの投稿'
+              : sheet?.kind === 'record'
+                ? '撮影記録'
+                : sheet?.kind === 'comments'
+                  ? 'コメント'
+                  : sheet?.kind === 'compose'
+                    ? '撮影証明・投稿'
+                    : sheet?.kind === 'saved'
+                      ? '保存した投稿'
+                      : sheet?.kind === 'settings'
+                        ? '設定'
+                        : sheet?.kind === 'more'
+                          ? '投稿について'
+                          : 'JustTakenについて';
   const filtered = demoPosts.filter(
     (p) =>
       (!query ||
@@ -258,13 +267,14 @@ function JustTaken() {
           <View style={s.main}>
             {!hydrated ? (
               <ActivityIndicator color={c.ink} />
-            ) : profile && consentRequired && (tab === 'home' || tab === 'camera') ? (
+            ) : profile && consentRequired && tab !== 'profile' ? (
               <CommunityConsent />
             ) : tab === 'home' && profile ? (
               <Posts
                 key={profile.userId}
                 activeView={!sheet}
                 revision={postRevision}
+                onUser={openUser}
                 onCamera={() => setTab('camera')}
               />
             ) : tab === 'home' && Platform.OS !== 'web' ? (
@@ -286,6 +296,14 @@ function JustTaken() {
                 onExplore={() => setTab('explore')}
                 onCamera={() => setTab('camera')}
               />
+            ) : (tab === 'explore' || tab === 'notifications') &&
+              (profile || Platform.OS !== 'web') ? (
+              <Social
+                key={`${profile?.userId}:${tab}`}
+                initial={{ kind: tab === 'explore' ? 'search' : 'inbox' }}
+                onCamera={() => setTab('camera')}
+                onRead={setUnread}
+              />
             ) : tab === 'camera' ? (
               <Camera
                 key={profile?.userId ?? 'guest'}
@@ -295,11 +313,7 @@ function JustTaken() {
                 onCapture={(capture) => {
                   setTab('profile');
                   openDraft(capture);
-                  void commitCapture(capture).catch((error) =>
-                    setUploadError(
-                      error instanceof Error ? error.message : '撮影記録を確定できませんでした。',
-                    ),
-                  );
+                  void commitCapture(capture).catch((error) => setUploadError(captureError(error)));
                 }}
               />
             ) : (
@@ -417,6 +431,27 @@ function JustTaken() {
                     >
                       あなたの撮影証明を見る
                     </Button>
+                    {profile && (
+                      <>
+                        <Button secondary icon="users" onPress={() => openUser(profile.userId)}>
+                          プロフィール・フォロー
+                        </Button>
+                        <Button
+                          secondary
+                          icon="user-plus"
+                          onPress={() => setSheet({ kind: 'social', route: { kind: 'requests' } })}
+                        >
+                          フォロー申請を確認
+                        </Button>
+                        <Button
+                          secondary
+                          icon="bookmark"
+                          onPress={() => setSheet({ kind: 'social', route: { kind: 'saved' } })}
+                        >
+                          保存した投稿
+                        </Button>
+                      </>
+                    )}
                     <View style={s.stats}>
                       <View>
                         <Text style={s.statValue}>{drafts.length}</Text>
@@ -471,39 +506,45 @@ function JustTaken() {
           </View>
           {(tab !== 'camera' || consentRequired) && (
             <View style={s.nav}>
-              {tabs
-                .filter(
-                  (item) =>
-                    Platform.OS === 'web' || ['home', 'camera', 'profile'].includes(item.id),
-                )
-                .map((item) => (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="tab"
-                    accessibilityLabel={item.label}
-                    accessibilityState={{ selected: tab === item.id }}
-                    onPress={() => setTab(item.id)}
-                    style={s.navItem}
-                  >
-                    {item.id === 'camera' ? (
-                      <View style={s.cameraTab}>
-                        <Icon name="camera" size={25} />
-                      </View>
-                    ) : (
-                      <Icon
-                        name={item.icon}
-                        size={21}
-                        color={tab === item.id ? c.ink : '#8A948C'}
-                      />
-                    )}
-                    <Text
-                      style={[s.navText, tab === item.id && { color: c.ink, fontWeight: '700' }]}
+              {tabs.map((item) => (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="tab"
+                  accessibilityLabel={item.label}
+                  accessibilityState={{ selected: tab === item.id }}
+                  onPress={() => setTab(item.id)}
+                  style={s.navItem}
+                >
+                  {item.id === 'camera' ? (
+                    <View style={s.cameraTab}>
+                      <Icon name="camera" size={25} />
+                    </View>
+                  ) : (
+                    <Icon name={item.icon} size={21} color={tab === item.id ? c.ink : '#8A948C'} />
+                  )}
+                  <Text style={[s.navText, tab === item.id && { color: c.ink, fontWeight: '700' }]}>
+                    {item.label}
+                  </Text>
+                  {tab === item.id && <View style={s.navDot} />}
+                  {item.id === 'notifications' && unread > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 1,
+                        right: 12,
+                        minWidth: 18,
+                        paddingHorizontal: 4,
+                        borderRadius: 10,
+                        backgroundColor: c.ink,
+                      }}
                     >
-                      {item.label}
-                    </Text>
-                    {tab === item.id && <View style={s.navDot} />}
-                  </Pressable>
-                ))}
+                      <Text style={{ color: c.white, fontSize: 11, textAlign: 'center' }}>
+                        {unread > 99 ? '99+' : unread}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              ))}
             </View>
           )}
         </SafeAreaView>
@@ -539,7 +580,17 @@ function JustTaken() {
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
               style={{ flex: 1 }}
             >
-              {sheet?.kind === 'moderation' ? (
+              {sheet?.kind === 'social' ? (
+                <Social
+                  key={JSON.stringify(sheet.route) + profile?.userId}
+                  initial={sheet.route}
+                  onCamera={() => {
+                    setSheet(null);
+                    setTab('camera');
+                  }}
+                  onRead={setUnread}
+                />
+              ) : sheet?.kind === 'moderation' ? (
                 <Moderation />
               ) : sheet?.kind === 'proofs' ? (
                 <Proofs
@@ -553,6 +604,7 @@ function JustTaken() {
                 <Posts
                   key={profile?.userId}
                   scope="mine"
+                  onUser={openUser}
                   revision={postRevision}
                   onCamera={() => {
                     setSheet(null);
@@ -845,11 +897,7 @@ function JustTaken() {
                             setSheet({ kind: 'proofs' });
                             setToast('撮影証明を保存しました。SNSには投稿していません');
                           } catch (error) {
-                            setUploadError(
-                              error instanceof Error
-                                ? error.message
-                                : '証明を保存できませんでした。',
-                            );
+                            setUploadError(captureError(error));
                           } finally {
                             setSending(false);
                           }
@@ -938,11 +986,7 @@ function JustTaken() {
                                 : '投稿を受け付けました。内容を確認中です',
                             );
                           } catch (error) {
-                            setUploadError(
-                              error instanceof Error
-                                ? error.message
-                                : '送信できませんでした。下書きから再試行できます。',
-                            );
+                            setUploadError(captureError(error));
                           } finally {
                             setSending(false);
                           }
@@ -1002,6 +1046,13 @@ function JustTaken() {
       )}
     </View>
   );
+}
+function captureError(error: unknown) {
+  if (error instanceof APIError)
+    return `${error.message}\n確認番号: ${error.code}${error.requestId ? ' / ' + error.requestId : ''}`;
+  return error instanceof Error
+    ? error.message
+    : '保存できませんでした。下書きから再試行してください。';
 }
 function InfoRow({ icon, title, copy }: { icon: IconName; title: string; copy: string }) {
   return (

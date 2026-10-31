@@ -4,6 +4,10 @@ import { captureModule, type CaptureSessionBinding, type LocalCapture } from '@j
 import { API_URL, api, accessToken, APIError } from './api';
 import * as Crypto from 'expo-crypto';
 export interface ServerPost {
+  liked?: number;
+  saved?: number;
+  like_count?: number;
+  comment_count?: number;
   post_id: string;
   author_id: string;
   caption: string;

@@ -592,6 +592,25 @@ try {
     'completed job removed without user-linked audit trail',
   );
   const ownerReceipt = randomBytes(32).toString('base64url');
+  const otherPost = randomUUID();
+  await db
+    .prepare(
+      "INSERT INTO posts(post_id,author_id,bucket_id,capture_id,installation_id,caption,visibility,state,created_at) VALUES(?,'viewer',0,?,?,'test social deletion','public','PUBLISHED',?)",
+    )
+    .bind(otherPost, randomUUID(), viewer.installationId, new Date().toISOString())
+    .run();
+  await db
+    .prepare('INSERT INTO post_likes VALUES(?,?,?)')
+    .bind(otherPost, 'owner', new Date().toISOString())
+    .run();
+  await db
+    .prepare('INSERT INTO post_saves VALUES(?,?,?)')
+    .bind(otherPost, 'owner', new Date().toISOString())
+    .run();
+  await db
+    .prepare('INSERT INTO post_comments VALUES(?,?,?,?,?)')
+    .bind(randomUUID(), otherPost, 'owner', 'erase me', new Date().toISOString())
+    .run();
   await call('/v1/me', 'DELETE', { confirmation: 'DELETE', receipt: ownerReceipt }, owner.access);
   await db.prepare('UPDATE account_deletions SET sweep_after=0,next_attempt=0').run();
   await call('/__fixture/deletions', 'POST', {});
@@ -606,6 +625,19 @@ try {
     await db.prepare("SELECT * FROM posts WHERE author_id='owner'").first(),
     null,
     'posts removed',
+  );
+  for (const table of ['post_likes', 'post_saves', 'post_comments'])
+    eq(
+      await db.prepare(`SELECT * FROM ${table} WHERE user_id='owner'`).first(),
+      null,
+      'account deletion removes ' + table,
+    );
+  eq(
+    await db
+      .prepare("SELECT * FROM social_notifications WHERE actor_id='owner' OR recipient_id='owner'")
+      .first(),
+    null,
+    'account deletion removes social notifications',
   );
   eq(
     (

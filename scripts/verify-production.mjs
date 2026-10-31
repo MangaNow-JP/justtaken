@@ -152,6 +152,10 @@ await Promise.all([
   ...[
     '/v1/me',
     '/v1/posts',
+    '/v1/users?q=justtaken',
+    '/v1/follow-requests',
+    '/v1/saved-posts',
+    '/v1/notifications',
     '/v1/proofs',
     '/v1/proofs/00000000-0000-4000-8000-000000000000/location',
     '/v1/captures/not-a-real-capture',

@@ -22,6 +22,7 @@ export class APIError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public requestId?: string,
   ) {
     super(message);
   }
@@ -123,6 +124,7 @@ async function request<T>(path: string, init: RequestInit, authorized: boolean):
       response.status,
       data?.error?.code ?? 'REQUEST_FAILED',
       data?.error?.message ?? '処理を完了できませんでした。',
+      data?.error?.requestId,
     );
   return data as T;
 }
