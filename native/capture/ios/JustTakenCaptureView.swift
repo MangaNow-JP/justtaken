@@ -23,8 +23,8 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
     return values
   }
   func setPhotoFormat(_ value: String) { guard photoFormat != value, !capturing else { return }; photoFormat = value; if window != nil { configure() } }
-  // Photos fire the flash at the moment of capture. In video mode the same switch keeps the torch
-  // on as a light while previewing and recording, as the system camera does.
+  // The switch is a continuous light in both modes: the torch stays on while previewing, through
+  // photo captures and recordings. Photos never fire the flash on top of it.
   var flashEnabled = false { didSet { let enabled = flashEnabled; queue.async { [weak self] in self?.torchRequested = enabled; self?.applyTorch() } } }
   private var torchRequested = false
   var captureSession = ""
@@ -49,9 +49,9 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
   // Call on `queue` after any change to the session or the switch.
   private func applyTorch() {
     guard let camera = videoDevice, camera.hasTorch else { return }
-    let wanted: AVCaptureDevice.TorchMode = torchRequested && session.isRunning && session.outputs.contains(movie) ? .on : .off
+    let wanted: AVCaptureDevice.TorchMode = torchRequested && session.isRunning ? .on : .off
     guard camera.torchMode != wanted, camera.isTorchModeSupported(wanted) else { return }
-    do { try camera.lockForConfiguration(); camera.torchMode = wanted; camera.unlockForConfiguration() } catch { /* Preview and recording continue without the light. */ }
+    do { try camera.lockForConfiguration(); camera.torchMode = wanted; camera.unlockForConfiguration() } catch { /* Capture continues without the light. */ }
   }
   private func report(_ message: String) { DispatchQueue.main.async { [weak self] in self?.onError(["message": message]) } }
   private func state(recording: Bool, finalizing: Bool = false, milliseconds: Int = 0) { DispatchQueue.main.async { [weak self] in self?.onRecording(["recording": recording, "finalizing": finalizing, "durationMs": milliseconds]) } }
@@ -97,7 +97,7 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
     guard value > lastShutter else { return }; lastShutter = value
     let captureTime = Date()
     let location = locationTracker.snapshot(at: captureTime)
-    let flash = flashEnabled, rawBinding = captureSession, mode = mode, requestedFormat = photoFormat
+    let rawBinding = captureSession, mode = mode, requestedFormat = photoFormat
     queue.async { [weak self] in
       guard let self else { return }
       if self.movie.isRecording { self.movie.stopRecording(); return }
@@ -122,7 +122,6 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
           settings.photoQualityPrioritization = .quality
         }
         settings.maxPhotoDimensions = self.photo.maxPhotoDimensions
-        if self.photo.supportedFlashModes.contains(flash ? .on : .off) { settings.flashMode = flash ? .on : .off }
         if let connection = self.photo.connection(with: .video), connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
         self.photo.capturePhoto(with: settings, delegate: self)
       }
