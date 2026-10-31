@@ -8,6 +8,7 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.core.DynamicRange
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraState
 import androidx.camera.video.*
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -55,18 +56,34 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
   private var capturing = false
   private var generation = 0
   private var executor = Executors.newSingleThreadExecutor()
+  // The switch is a continuous light in both modes: the torch stays on while previewing, through
+  // photo captures and recordings. Photos never fire the flash on top of it.
   var flashEnabled = false
+    set(value) { field = value; applyTorch() }
   var captureSession = ""
   init { addView(previewView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)); addView(heifPreview, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)); heifPreview.visibility = android.view.View.GONE }
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) { previewView.layout(0, 0, right - left, bottom - top); heifPreview.layout(0, 0, right - left, bottom - top) }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); (appContext.currentActivity as? LifecycleOwner)?.let { locationTracker.attach(it) }; if (executor.isShutdown) executor = Executors.newSingleThreadExecutor(); bind() }
   override fun onDetachedFromWindow() {
     locationTracker.detach()
+    watchCamera(null)
     generation++; heifCamera?.close(); heifCamera = null
     recording?.stop()
     videoCapture?.let { provider?.unbind(it) }
     preview?.let { provider?.unbind(it) }; imageCapture?.let { provider?.unbind(it) }
     executor.shutdown(); super.onDetachedFromWindow()
+  }
+  private fun applyTorch() {
+    heifCamera?.setTorch(flashEnabled)
+    camera?.let { it.cameraControl.enableTorch(flashEnabled && it.cameraInfo.hasFlashUnit()) }
+  }
+  // CameraX turns the torch off whenever the camera closes; light it again each time it reopens.
+  private fun watchCamera(next: Camera?) {
+    val owner = appContext.currentActivity as? LifecycleOwner
+    owner?.let { camera?.cameraInfo?.cameraState?.removeObservers(it) }
+    camera = next
+    if (next != null && owner != null) next.cameraInfo.cameraState.observe(owner) { state -> if (state.type == CameraState.Type.OPEN && camera === next) applyTorch() }
+    applyTorch()
   }
   fun setFacing(value: String) {
     val next = if (value == "front") CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
@@ -102,9 +119,9 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
         heifPreview.visibility = if (heif) android.view.View.VISIBLE else android.view.View.GONE
         previewView.visibility = if (heif) android.view.View.GONE else android.view.View.VISIBLE
         if (heif) {
-          imageCapture = null; videoCapture = null; preview = null
+          imageCapture = null; videoCapture = null; preview = null; watchCamera(null)
           heifCamera = HeifCamera(context, heifPreview, facing == CameraSelector.LENS_FACING_FRONT, owner, { ready -> post { if(generation == current) onReady(mapOf("ready" to ready, "photoFormats" to formats)) } }, { message -> post { if(generation == current) { capturing = false; onError(mapOf("message" to message)) } } })
-          heifCamera!!.open(); return@addListener
+          heifCamera!!.setTorch(flashEnabled); heifCamera!!.open(); return@addListener
         }
         if (mode == "video") {
           val recorder = Recorder.Builder().setQualitySelector(QualitySelector.from(Quality.UHD, FallbackStrategy.lowerQualityThan(Quality.UHD))).build()
@@ -112,11 +129,11 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
           val ranges = Recorder.getVideoCapabilities(cameraInfo).supportedDynamicRanges
           val dynamicRange = if (ranges.contains(DynamicRange.HLG_10_BIT)) DynamicRange.HLG_10_BIT else DynamicRange.SDR
           val video = VideoCapture.Builder(recorder).setDynamicRange(dynamicRange).setTargetFrameRate(Range(30, 30)).build()
-          camera = provider!!.bindToLifecycle(owner, selector, newPreview, video)
+          watchCamera(provider!!.bindToLifecycle(owner, selector, newPreview, video))
           videoCapture = video; imageCapture = null
         } else {
           val newCapture = ImageCapture.Builder().setOutputFormat(when(photoFormat) { "raw" -> ImageCapture.OUTPUT_FORMAT_RAW_JPEG; "hdr" -> ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR; else -> ImageCapture.OUTPUT_FORMAT_JPEG }).setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).setJpegQuality(100).setResolutionSelector(ResolutionSelector.Builder().setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY).build()).build()
-          camera = provider!!.bindToLifecycle(owner, selector, newPreview, newCapture)
+          watchCamera(provider!!.bindToLifecycle(owner, selector, newPreview, newCapture))
           imageCapture = newCapture; videoCapture = null
         }
         preview = newPreview
@@ -136,7 +153,7 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
     capturing = true
     try {
       video.targetRotation = display?.rotation ?: 0
-      camera?.cameraControl?.enableTorch(flashEnabled && camera?.cameraInfo?.hasFlashUnit() == true)
+      applyTorch()
       val options = FileOutputOptions.Builder(source).setDurationLimitMillis(59_800).setFileSizeLimit(536_870_912).build()
       val pending = video.output.prepareRecording(context, options)
       if (audioEnabled) pending.withAudioEnabled()
@@ -144,7 +161,7 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
         when (event) {
           is VideoRecordEvent.Start, is VideoRecordEvent.Status -> onRecording(mapOf("recording" to true, "finalizing" to false, "durationMs" to TimeUnit.NANOSECONDS.toMillis(event.recordingStats.recordedDurationNanos)))
           is VideoRecordEvent.Finalize -> {
-            recording?.close(); recording = null; camera?.cameraControl?.enableTorch(false)
+            recording?.close(); recording = null; applyTorch()
             val valid = event.error in listOf(VideoRecordEvent.Finalize.ERROR_NONE, VideoRecordEvent.Finalize.ERROR_DURATION_LIMIT_REACHED, VideoRecordEvent.Finalize.ERROR_FILE_SIZE_LIMIT_REACHED, VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE)
             if (!valid) { capturing = false; source.delete(); onRecording(mapOf("recording" to false, "finalizing" to false, "durationMs" to 0)); onError(mapOf("message" to "動画の録画が中断されました。もう一度撮影してください。")) }
             else {
@@ -181,7 +198,7 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
     if (currentFormat == "heif") {
       val engine = heifCamera
       if(engine == null) { capturing = false; return }
-      engine.capture(flashEnabled, display?.rotation ?: 0) { file ->
+      engine.capture(display?.rotation ?: 0) { file ->
         try { val handle = CaptureStore.create(context, file, "image/heic", null, capturedAt, binding, location = location); post { onCapture(mapOf("handle" to handle)) } }
         catch (error: Exception) { post { onError(mapOf("message" to (error.message ?: "HEIF写真を保存できませんでした。"))) } }
         finally { file.delete(); post { capturing = false } }
@@ -208,7 +225,7 @@ class JustTakenCaptureView(context: Context, appContext: AppContext) : ExpoView(
       override fun onError(exception: ImageCaptureException) { if(finished) return; finished = true; original.delete(); companion?.delete(); post { capturing = false; onError(mapOf("message" to "撮影できませんでした。もう一度お試しください。")) } }
     }
     try {
-      capture.flashMode = if (flashEnabled) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF
+      capture.flashMode = ImageCapture.FLASH_MODE_OFF
       capture.targetRotation = display?.rotation ?: 0
       val options = ImageCapture.OutputFileOptions.Builder(original).build()
       if(raw) capture.takePicture(options, ImageCapture.OutputFileOptions.Builder(companion!!).build(), executor, callback)

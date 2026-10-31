@@ -112,6 +112,7 @@ export const appStyles = StyleSheet.create({
     backgroundColor: c.stone,
   },
   privateText: { fontSize: 10, color: c.muted },
+  profileActions: { gap: 12, marginTop: 28 },
   stats: {
     flexDirection: 'row',
     alignItems: 'center',

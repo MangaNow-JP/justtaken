@@ -415,43 +415,47 @@ function JustTaken() {
                         <Text style={s.privateText}>非公開アカウントが初期設定です</Text>
                       </View>
                     </View>
-                    {!profile ? (
-                      <Button icon="user" onPress={() => setSheet({ kind: 'login' })}>
-                        ログイン / はじめる
+                    <View style={s.profileActions}>
+                      {!profile ? (
+                        <Button icon="user" onPress={() => setSheet({ kind: 'login' })}>
+                          ログイン / はじめる
+                        </Button>
+                      ) : (
+                        <Button icon="image" onPress={() => setSheet({ kind: 'posts' })}>
+                          あなたの投稿を見る
+                        </Button>
+                      )}
+                      <Button
+                        icon="shield"
+                        secondary
+                        onPress={() => setSheet({ kind: profile ? 'proofs' : 'login' })}
+                      >
+                        あなたの撮影証明を見る
                       </Button>
-                    ) : (
-                      <Button icon="image" onPress={() => setSheet({ kind: 'posts' })}>
-                        あなたの投稿を見る
-                      </Button>
-                    )}
-                    <Button
-                      icon="shield"
-                      secondary
-                      onPress={() => setSheet({ kind: profile ? 'proofs' : 'login' })}
-                    >
-                      あなたの撮影証明を見る
-                    </Button>
-                    {profile && (
-                      <>
-                        <Button secondary icon="users" onPress={() => openUser(profile.userId)}>
-                          プロフィール・フォロー
-                        </Button>
-                        <Button
-                          secondary
-                          icon="user-plus"
-                          onPress={() => setSheet({ kind: 'social', route: { kind: 'requests' } })}
-                        >
-                          フォロー申請を確認
-                        </Button>
-                        <Button
-                          secondary
-                          icon="bookmark"
-                          onPress={() => setSheet({ kind: 'social', route: { kind: 'saved' } })}
-                        >
-                          保存した投稿
-                        </Button>
-                      </>
-                    )}
+                      {profile && (
+                        <>
+                          <Button secondary icon="users" onPress={() => openUser(profile.userId)}>
+                            プロフィール・フォロー
+                          </Button>
+                          <Button
+                            secondary
+                            icon="user-plus"
+                            onPress={() =>
+                              setSheet({ kind: 'social', route: { kind: 'requests' } })
+                            }
+                          >
+                            フォロー申請を確認
+                          </Button>
+                          <Button
+                            secondary
+                            icon="bookmark"
+                            onPress={() => setSheet({ kind: 'social', route: { kind: 'saved' } })}
+                          >
+                            保存した投稿
+                          </Button>
+                        </>
+                      )}
+                    </View>
                     <View style={s.stats}>
                       <View>
                         <Text style={s.statValue}>{drafts.length}</Text>

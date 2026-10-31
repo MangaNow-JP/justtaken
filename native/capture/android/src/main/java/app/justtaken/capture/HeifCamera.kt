@@ -50,7 +50,7 @@ internal class HeifCamera(
   private var generation = 0
   private var pending: ((File) -> Unit)? = null
   private var shotRequested = false
-  private var pendingFlash = false
+  private var torch = false
   private var pendingRotation = 0
   private val observer = LifecycleEventObserver { _, event ->
     if(event == Lifecycle.Event.ON_STOP) handler.post { stopCamera() }
@@ -92,7 +92,7 @@ internal class HeifCamera(
               override fun onConfigured(configured:CameraCaptureSession){
                 if(closed||epoch!=generation){configured.close();return};session=configured
                 try {
-                  preview=camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(surface!!);set(CaptureRequest.CONTROL_AF_MODE,focusMode());set(CaptureRequest.CONTROL_AE_MODE,CaptureRequest.CONTROL_AE_MODE_ON) }
+                  preview=camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(surface!!);set(CaptureRequest.CONTROL_AF_MODE,focusMode());set(CaptureRequest.CONTROL_AE_MODE,CaptureRequest.CONTROL_AE_MODE_ON);set(CaptureRequest.FLASH_MODE,flashMode()) }
                   configured.setRepeatingRequest(preview!!.build(),captureCallback,handler)
                   texture.post { transform(previewSize,c.get(CameraCharacteristics.SENSOR_ORIENTATION)?:0) };ready(true)
                 }catch(_:Exception){error("HEIFプレビューを開始できませんでした。");stopCamera()}
@@ -127,14 +127,22 @@ internal class HeifCamera(
       if((focusMode()==CaptureRequest.CONTROL_AF_MODE_OFF||af==null||af==CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED||af==CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED||af==CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED) && (ae==null||ae==CaptureResult.CONTROL_AE_STATE_CONVERGED||ae==CaptureResult.CONTROL_AE_STATE_FLASH_REQUIRED)) takeStill()
     }
   }
-  fun capture(flash:Boolean,rotation:Int,callback:(File)->Unit){
+  // Every request carries the torch state; a request without it would switch the light off.
+  private fun flashMode()=if(torch&&characteristics?.get(CameraCharacteristics.FLASH_INFO_AVAILABLE)==true)CaptureRequest.FLASH_MODE_TORCH else CaptureRequest.FLASH_MODE_OFF
+  fun setTorch(on:Boolean){
+    handler.post {
+      torch=on
+      val request=preview?:return@post
+      try { request.set(CaptureRequest.FLASH_MODE,flashMode());session?.setRepeatingRequest(request.build(),captureCallback,handler) }catch(_:Exception){}
+    }
+  }
+  fun capture(rotation:Int,callback:(File)->Unit){
     handler.post {
       if(closed||device==null||session==null||pending!=null){error("HEIFカメラの準備を待ってください。");return@post}
-      pending=callback;pendingFlash=flash;pendingRotation=rotation;shotRequested=false
+      pending=callback;pendingRotation=rotation;shotRequested=false
       handler.postDelayed(timeout,15000)
       try {
         val request=preview!!
-        request.set(CaptureRequest.CONTROL_AE_MODE,if(flash&&characteristics?.get(CameraCharacteristics.FLASH_INFO_AVAILABLE)==true)CaptureRequest.CONTROL_AE_MODE_ON_ALWAYS_FLASH else CaptureRequest.CONTROL_AE_MODE_ON)
         request.set(CaptureRequest.CONTROL_AF_TRIGGER,if(focusMode()==CaptureRequest.CONTROL_AF_MODE_OFF)CaptureRequest.CONTROL_AF_TRIGGER_IDLE else CaptureRequest.CONTROL_AF_TRIGGER_START)
         request.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START)
         session!!.capture(request.build(),captureCallback,handler)
@@ -153,7 +161,7 @@ internal class HeifCamera(
       val request=requireNotNull(device).createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
         addTarget(reader!!.surface);set(CaptureRequest.JPEG_ORIENTATION,orientation);set(CaptureRequest.JPEG_QUALITY,100.toByte())
         set(CaptureRequest.CONTROL_AF_MODE,focusMode())
-        set(CaptureRequest.CONTROL_AE_MODE,if(pendingFlash&&c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE)==true)CaptureRequest.CONTROL_AE_MODE_ON_ALWAYS_FLASH else CaptureRequest.CONTROL_AE_MODE_ON)
+        set(CaptureRequest.CONTROL_AE_MODE,CaptureRequest.CONTROL_AE_MODE_ON);set(CaptureRequest.FLASH_MODE,flashMode())
       }
       session!!.capture(request.build(),object:CameraCaptureSession.CaptureCallback(){
         override fun onCaptureFailed(session:CameraCaptureSession,request:CaptureRequest,failure:CaptureFailure){pending=null;handler.removeCallbacks(timeout);error("HEIF写真を撮影できませんでした。");stopCamera();open()}

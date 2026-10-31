@@ -162,11 +162,12 @@ export function Camera({
                 : 'GPS オフ'}
           </Text>
         </View>
+        {/* A continuous light in both modes; it can also be switched mid-recording. */}
         <IconButton
           name={flash ? 'zap' : 'zap-off'}
           color="white"
-          label={flash ? 'フラッシュをオフ' : 'フラッシュをオン'}
-          disabled={!supported || busy || facing === 'front'}
+          label={flash ? 'ライトをオフ' : 'ライトをオン'}
+          disabled={!supported || (busy && !recording) || facing === 'front'}
           onPress={() => setFlash(!flash)}
           style={s.round}
         />
