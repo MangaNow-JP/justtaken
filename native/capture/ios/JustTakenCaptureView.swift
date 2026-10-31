@@ -23,7 +23,10 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
     return values
   }
   func setPhotoFormat(_ value: String) { guard photoFormat != value, !capturing else { return }; photoFormat = value; if window != nil { configure() } }
-  var flashEnabled = false
+  // Photos fire the flash at the moment of capture. In video mode the same switch keeps the torch
+  // on as a light while previewing and recording, as the system camera does.
+  var flashEnabled = false { didSet { let enabled = flashEnabled; queue.async { [weak self] in self?.torchRequested = enabled; self?.applyTorch() } } }
+  private var torchRequested = false
   var captureSession = ""
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext); preview.videoGravity = .resizeAspectFill; layer.addSublayer(preview)
@@ -41,6 +44,15 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
   func setFacing(_ facing: String) { let next: AVCaptureDevice.Position = facing == "front" ? .front : .back; guard position != next else { return }; position = next; if window != nil { configure() } }
   func setMode(_ value: String) { guard mode != value else { return }; mode = value == "video" ? "video" : "photo"; if window != nil { configure() } }
   func setAudio(_ value: Bool) { guard audioEnabled != value else { return }; audioEnabled = value; if window != nil && mode == "video" { configure() } }
+  // Inputs also hold the microphone in video mode; never rely on their order.
+  private var videoDevice: AVCaptureDevice? { session.inputs.compactMap { $0 as? AVCaptureDeviceInput }.first { $0.device.hasMediaType(.video) }?.device }
+  // Call on `queue` after any change to the session or the switch.
+  private func applyTorch() {
+    guard let camera = videoDevice, camera.hasTorch else { return }
+    let wanted: AVCaptureDevice.TorchMode = torchRequested && session.isRunning && session.outputs.contains(movie) ? .on : .off
+    guard camera.torchMode != wanted, camera.isTorchModeSupported(wanted) else { return }
+    do { try camera.lockForConfiguration(); camera.torchMode = wanted; camera.unlockForConfiguration() } catch { /* Preview and recording continue without the light. */ }
+  }
   private func report(_ message: String) { DispatchQueue.main.async { [weak self] in self?.onError(["message": message]) } }
   private func state(recording: Bool, finalizing: Bool = false, milliseconds: Int = 0) { DispatchQueue.main.async { [weak self] in self?.onRecording(["recording": recording, "finalizing": finalizing, "durationMs": milliseconds]) } }
   private func configure() {
@@ -49,6 +61,8 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
       guard let self, !self.capturing else { return }
       guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { self.report("カメラの使用を許可してください。"); return }
       DispatchQueue.main.async { [weak self] in self?.onReady(["ready": false]) }
+      // A camera leaving the session must not keep its torch lit.
+      if let camera = self.videoDevice, camera.hasTorch, camera.torchMode != .off { do { try camera.lockForConfiguration(); camera.torchMode = .off; camera.unlockForConfiguration() } catch {} }
       self.session.beginConfiguration(); self.session.inputs.forEach { self.session.removeInput($0) }; self.session.outputs.forEach { self.session.removeOutput($0) }
       self.session.sessionPreset = mode == "video" ? .high : .photo
       do {
@@ -72,7 +86,7 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
           if self.photo.isAppleProRAWSupported { self.photo.isAppleProRAWEnabled = true }
           if let maximum = camera.activeFormat.supportedMaxPhotoDimensions.max(by: { Int64($0.width) * Int64($0.height) < Int64($1.width) * Int64($1.height) }) { self.photo.maxPhotoDimensions = maximum }
         }
-        self.session.commitConfiguration(); self.session.startRunning()
+        self.session.commitConfiguration(); self.session.startRunning(); self.applyTorch()
         let formats = self.photoFormats(), supported = mode == "video" || formats.contains(self.photoFormat)
         DispatchQueue.main.async { [weak self] in self?.onReady(["ready": supported, "photoFormats": formats]) }
         if !supported { self.report("このカメラは選択した形式に対応していません。別の形式を選んでください。") }
@@ -91,9 +105,7 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
       do { self.captureBinding = try CaptureBinding(rawBinding) } catch { self.report(error.localizedDescription); return }
       self.capturing = true; self.capturedAt = captureTime; self.captureLocation = location
       if mode == "video" {
-        if let camera = (self.session.inputs.first as? AVCaptureDeviceInput)?.device, camera.hasTorch, camera.isTorchAvailable {
-          do { try camera.lockForConfiguration(); camera.torchMode = flash ? .on : .off; camera.unlockForConfiguration() } catch { /* Recording can continue without torch. */ }
-        }
+        self.applyTorch()
         if let connection = self.movie.connection(with: .video) { if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }; if connection.isVideoMirroringSupported { connection.automaticallyAdjustsVideoMirroring = false; connection.isVideoMirrored = false } }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("justtaken-" + UUID().uuidString + ".mov")
         self.movie.startRecording(to: file, recordingDelegate: self)
@@ -148,7 +160,7 @@ final class JustTakenCaptureView: ExpoView, AVCapturePhotoCaptureDelegate, AVCap
   func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo fileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
     queue.async { [weak self] in
       guard let self else { return }; self.ticker?.cancel(); self.ticker = nil
-      if let camera = (self.session.inputs.first as? AVCaptureDeviceInput)?.device, camera.hasTorch { do { try camera.lockForConfiguration(); camera.torchMode = .off; camera.unlockForConfiguration() } catch { /* Session shutdown also releases the torch. */ } }
+      self.applyTorch()
       self.state(recording: false, finalizing: true)
       let successful = error == nil || (error as NSError?)?.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool == true
       guard successful, let binding = self.captureBinding else { try? FileManager.default.removeItem(at: fileURL); self.capturing = false; self.state(recording: false); self.report("動画の録画が中断されました。もう一度撮影してください。"); return }
