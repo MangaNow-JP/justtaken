@@ -91,7 +91,6 @@ export function Camera({
     };
   }, []);
   const supported = !!NativeCaptureView && permission === 'granted';
-  const continuousLight = Platform.OS === 'ios' || mode === 'video';
   return (
     <View style={s.root}>
       {supported && NativeCaptureView ? (
@@ -163,15 +162,12 @@ export function Camera({
                 : 'GPS オフ'}
           </Text>
         </View>
-        {/* iOS keeps a continuous light in both modes, also mid-recording. Android photos still
-            fire the flash at capture. */}
+        {/* A continuous light in both modes; it can also be switched mid-recording. */}
         <IconButton
           name={flash ? 'zap' : 'zap-off'}
           color="white"
-          label={`${continuousLight ? 'ライト' : 'フラッシュ'}を${flash ? 'オフ' : 'オン'}`}
-          disabled={
-            !supported || (busy && !(recording && Platform.OS === 'ios')) || facing === 'front'
-          }
+          label={flash ? 'ライトをオフ' : 'ライトをオン'}
+          disabled={!supported || (busy && !recording) || facing === 'front'}
           onPress={() => setFlash(!flash)}
           style={s.round}
         />
@@ -302,9 +298,6 @@ export function Camera({
               原本をそのまま保存 · 対応形式は端末・レンズによります{'\n'}
               HDR情報はカメラが出力した場合に保持します
             </Text>
-            {flash && !continuousLight && (
-              <Text style={s.note}>フラッシュ オン · 撮影の瞬間に発光します</Text>
-            )}
           </View>
         )}
         {mode === 'video' && (
