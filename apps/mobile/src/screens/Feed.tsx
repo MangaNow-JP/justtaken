@@ -3,6 +3,38 @@ import { colors as c } from '../theme';
 import { demoPosts, type DemoPost } from '../data/demo';
 import { Avatar, Icon, IconButton, Photo } from '../components/UI';
 
+const homeTabs = [
+  ['recommended', 'おすすめ'],
+  ['following', 'フォロー中'],
+  ['discover', '見つける'],
+] as const;
+export type HomeTab = (typeof homeTabs)[number][0];
+
+export function HomeTabs({
+  selected,
+  onChange,
+}: {
+  selected: HomeTab;
+  onChange: (tab: HomeTab) => void;
+}) {
+  return (
+    <View accessibilityRole="tablist" style={s.tabs}>
+      {homeTabs.map(([tab, label]) => (
+        <Pressable
+          key={tab}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selected === tab }}
+          onPress={() => onChange(tab)}
+          style={s.tab}
+        >
+          <Text style={selected === tab ? s.tabText : s.tabMuted}>{label}</Text>
+          {selected === tab && <View style={s.underline} />}
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export function Feed({
   likes,
   bookmarks,
@@ -11,7 +43,6 @@ export function Feed({
   onRecord,
   onComments,
   onMore,
-  onExplore,
   onCamera,
 }: {
   likes: string[];
@@ -21,7 +52,6 @@ export function Feed({
   onRecord: (post: DemoPost) => void;
   onComments: (post: DemoPost) => void;
   onMore: (post: DemoPost) => void;
-  onExplore: () => void;
   onCamera: () => void;
 }) {
   return (
@@ -40,17 +70,7 @@ export function Feed({
           <Icon name="sun" size={25} />
         </Pressable>
       </View>
-      <View style={s.tabs}>
-        <View style={s.tabActive}>
-          <Text style={s.tabText}>フォロー中</Text>
-          <View style={s.underline} />
-        </View>
-        <Pressable accessibilityRole="button" onPress={onExplore} style={s.tab}>
-          <Text style={s.tabMuted}>見つける</Text>
-        </Pressable>
-        <View style={{ flex: 1 }} />
-        <Text style={s.sampleTag}>サンプル</Text>
-      </View>
+      <Text style={s.sampleTag}>サンプル投稿</Text>
       {demoPosts.map((post) => (
         <View key={post.id} style={s.card}>
           <View style={s.author}>
@@ -143,13 +163,11 @@ const s = StyleSheet.create({
   tabs: {
     marginHorizontal: 24,
     flexDirection: 'row',
-    gap: 26,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderColor: c.line,
   },
-  tab: { paddingBottom: 16 },
-  tabActive: { paddingBottom: 16 },
+  tab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   tabText: { fontSize: 14, color: c.ink, fontWeight: '700' },
   tabMuted: { fontSize: 14, color: c.muted },
   underline: {
@@ -162,6 +180,8 @@ const s = StyleSheet.create({
     borderRadius: 3,
   },
   sampleTag: {
+    alignSelf: 'flex-start',
+    marginLeft: 24,
     color: c.muted,
     fontSize: 10,
     backgroundColor: c.stone,

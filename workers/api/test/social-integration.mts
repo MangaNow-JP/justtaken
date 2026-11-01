@@ -111,6 +111,28 @@ try {
     eve = await seed('eve'),
     outsider = await seed('outsider'),
     wild = await seed('literal', 0, '100%_real');
+  eq(
+    (await db.prepare("SELECT bio FROM profiles WHERE user_id='migration-a'").first())!.bio,
+    '',
+    'existing accounts start with an empty bio after migration',
+  );
+  const updateAlice = (fields = {}) =>
+    call('/v1/me', alice, 'POST', { displayName: 'alice', isPrivate: true, ...fields });
+  const privateBio = '📷 日々のきろく\n家族と散歩。';
+  const maxBio = '👩🏽‍💻'.repeat(160);
+  eq((await updateAlice({ bio: maxBio })).status, 200, '160 multi-codepoint emoji fit');
+  eq((await updateAlice({ bio: maxBio + 'あ' })).status, 400, '161 graphemes rejected');
+  eq((await updateAlice({ bio: null })).status, 400, 'non-string bio rejected');
+  eq((await call('/v1/me', alice)).profile.bio, maxBio, 'invalid edits preserve the bio');
+  await updateAlice({ bio: '  ' + privateBio + '  ' });
+  await updateAlice();
+  eq((await call('/v1/me', alice)).profile.bio, privateBio, 'legacy clients preserve the bio');
+  eq((await call('/v1/users/alice', alice)).profile.bio, privateBio, 'owner sees private bio');
+  eq((await call('/v1/users/alice', outsider)).profile.bio, '', 'strangers cannot see private bio');
+  await call('/v1/me', bob, 'POST', { displayName: 'ボブ', isPrivate: false, bio: '海が好き' });
+  eq((await call('/v1/users/bob', outsider)).profile.bio, '海が好き', 'public bio visible');
+  await call('/v1/me', bob, 'POST', { displayName: 'ボブ', isPrivate: false, bio: '  ' });
+  eq((await call('/v1/users/bob', outsider)).profile.bio, '', 'owner can clear a public bio');
   async function post(id: string, author: string, visibility: string) {
     await db
       .prepare(
@@ -121,6 +143,47 @@ try {
   }
   await post('private-photo', 'alice', 'followers');
   await post('public-photo', 'bob', 'public');
+  const shared = '/v1/posts/public-photo/shared';
+  const landing = await mf.dispatchFetch('http://test/public/posts/public-photo');
+  eq(landing.status, 200, 'HTTPS share destination has a browser landing page');
+  const html = await landing.text();
+  eq(
+    html.includes('href="justtaken://post/public-photo"'),
+    true,
+    'landing opens exactly the shared post',
+  );
+  eq(
+    /moment|ボブ|media-grants|capture_id|installation_id/.test(html),
+    false,
+    'anonymous landing contains no user content or credentials',
+  );
+  const head = await mf.dispatchFetch('http://test/public/posts/public-photo', { method: 'HEAD' });
+  eq([head.status, await head.text()], [200, ''], 'link preview HEAD does not disclose post data');
+  eq((await call(shared, '')).status, 401, 'post link requires login');
+  eq(
+    (await call(shared, eve)).post.post_id,
+    'public-photo',
+    'eligible viewer can open a shared public post',
+  );
+  eq(
+    (await call('/v1/posts/private-photo/shared', alice)).status,
+    404,
+    'even an owner cannot open a follower-only post through sharing',
+  );
+  await db.prepare("UPDATE profiles SET is_private=1 WHERE user_id='bob'").run();
+  eq((await call(shared, bob)).status, 404, 'link stops working when author goes private');
+  await db.prepare("UPDATE profiles SET is_private=0 WHERE user_id='bob'").run();
+  await db.prepare("UPDATE posts SET moderation='PENDING' WHERE post_id='public-photo'").run();
+  eq((await call(shared, eve)).status, 404, 'link requires current moderation approval');
+  await db.prepare("UPDATE posts SET moderation='ALLOWED' WHERE post_id='public-photo'").run();
+  const recommended = '/v1/feed?scope=recommended';
+  eq((await call(recommended, '')).status, 401, 'recommended feed requires authentication');
+  eq(
+    (await call(recommended, eve)).posts.map((p: any) => p.post_id),
+    ['public-photo'],
+    'recommendations include public strangers and exclude follower-only posts',
+  );
+  eq((await call(recommended, bob)).posts.length, 0, 'recommendations exclude own posts');
   eq((await call('/v1/users?q=ボブ', '')).status, 401, 'search requires authentication');
   eq(
     (await call('/v1/users?q=%25_', bob)).users.map((x: any) => x.userId),
@@ -143,6 +206,7 @@ try {
     'PENDING',
     'idempotent request',
   );
+  eq((await call('/v1/users/alice', bob)).profile.bio, '', 'pending followers cannot see bio');
   eq(
     (await call('/v1/follow-requests', alice)).items.map((x: any) => x.userId),
     ['bob'],
@@ -176,6 +240,7 @@ try {
     'APPROVED',
     'approved relationship',
   );
+  eq((await call('/v1/users/alice', bob)).profile.bio, privateBio, 'approved follower sees bio');
   eq(
     (await call('/v1/users/alice/posts', bob)).posts.length,
     1,
@@ -188,6 +253,7 @@ try {
   );
   eq((await call('/v1/notifications', bob)).items[0].kind, 'accepted', 'acceptance notification');
   await call('/v1/users/bob/follow', alice, 'PUT');
+  eq((await call(recommended, alice)).posts.length, 0, 'followed authors leave recommendations');
   eq(
     (await call('/v1/users/bob', alice)).profile.relationship,
     'APPROVED',
@@ -358,9 +424,15 @@ try {
   eq((await call('/v1/follow-requests', alice)).items.length, 0, 'cancel outgoing request');
   await call('/v1/posts/public-photo/like', alice, 'PUT');
   await call('/v1/blocks/bob', alice, 'PUT');
+  eq((await call(shared, alice)).status, 404, 'a link cannot bypass blocks');
   eq((await call('/v1/users/bob', alice)).status, 404, 'blocked profile hidden');
   eq((await call('/v1/users/alice/follow', bob, 'PUT')).status, 404, 'cannot follow blocker');
   eq((await call('/v1/users?q=ボブ', alice)).users.length, 0, 'blocked user hidden from search');
+  eq(
+    (await call(recommended, alice)).posts.length,
+    0,
+    'blocked author hidden from recommendations',
+  );
   eq((await call('/v1/notifications', alice)).items.length, 0, 'blocked notifications removed');
   eq(
     (await call('/v1/notifications', bob)).items.length,
@@ -376,6 +448,11 @@ try {
   await db.prepare("UPDATE profiles SET status='SUSPENDED' WHERE user_id='literal'").run();
   eq((await call('/v1/users?q=100', alice)).users.length, 0, 'suspended account excluded');
   await db.prepare("DELETE FROM user_consents WHERE user_id='outsider'").run();
+  eq(
+    (await call(shared, outsider)).status,
+    403,
+    'shared-post recipient must accept current terms and confirm they are an adult',
+  );
   eq(
     (await call('/v1/users/bob/follow', outsider, 'PUT')).status,
     403,
@@ -443,6 +520,7 @@ try {
     'per-user comment rate limit',
   );
   await db.prepare("UPDATE posts SET state='DELETED' WHERE post_id='public-photo'").run();
+  eq((await call(shared, eve)).status, 404, 'deleted post disappears from shared links');
   eq(
     (await db.prepare("SELECT COUNT(*) n FROM post_comments WHERE post_id='public-photo'").first())!
       .n,
@@ -450,6 +528,29 @@ try {
     'soft post deletion erases comments',
   );
   eq((await call('/v1/notifications', bob)).items.length, 0, 'deleted post notifications gone');
+  await post('private-account-public', 'alice', 'public');
+  await post('inactive-author', 'literal', 'public');
+  await post('not-approved', 'bob', 'public');
+  await db.prepare("UPDATE posts SET moderation='PENDING' WHERE post_id='not-approved'").run();
+  eq(
+    (await call(recommended, eve)).posts.length,
+    0,
+    'exclude private accounts, suspended authors, deleted and unmoderated posts',
+  );
+  for (let i = 0; i < 21; i++) await post('rec-' + String(i).padStart(2, '0'), 'bob', 'public');
+  await db
+    .prepare("UPDATE posts SET created_at='2026-01-01T00:00:00Z' WHERE post_id LIKE 'rec-%'")
+    .run();
+  const firstRecs = await call(recommended, eve);
+  eq(firstRecs.scope, 'recommended', 'identify recommendations separately from the legacy feed');
+  eq(firstRecs.posts.length, 20, 'recommended page bounded');
+  eq(firstRecs.posts[0].post_id, 'rec-20', 'recommendations use stable ID tie-break');
+  const nextRecs = await call(recommended + '&cursor=' + firstRecs.nextCursor, eve);
+  eq(
+    nextRecs.posts.map((p: any) => p.post_id),
+    ['rec-00'],
+    'cursor traverses tied timestamps without repeats',
+  );
   console.log(`Social integration: ${checks} checks passed.`);
 } finally {
   await mf.dispose();

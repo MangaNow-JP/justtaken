@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking, Text, TextInput, View, Switch } from 'react-native';
+import { countGraphemes, profileBioMaxGraphemes } from '@justtaken/contracts/text';
 import { useAuth } from '../services/auth';
 import { api, APIError, currentCredentials, saveCredentials, type Profile } from '../services/api';
 import {
@@ -21,7 +22,10 @@ export function AccountSettings({
 }) {
   const { profile } = useAuth();
   const [name, setName] = useState(profile?.displayName ?? ''),
+    [bioDraft, setBioDraft] = useState<string>(),
     [privateAccount, setPrivate] = useState(profile?.isPrivate ?? true);
+  const bio = bioDraft ?? profile?.bio ?? '';
+  const bioLength = countGraphemes(bio.trim());
   const [confirm, setConfirm] = useState(false),
     [confirmation, setConfirmation] = useState(''),
     [busy, setBusy] = useState(false),
@@ -52,6 +56,7 @@ export function AccountSettings({
           <Text style={{ color: c.ink, fontWeight: '700' }}>プロフィール</Text>
           <TextInput
             accessibilityLabel="表示名"
+            editable={!busy}
             value={name}
             onChangeText={setName}
             maxLength={60}
@@ -63,12 +68,38 @@ export function AccountSettings({
               color: c.ink,
             }}
           />
+          <Text style={{ color: c.ink }}>自己紹介</Text>
+          <TextInput
+            accessibilityLabel="自己紹介"
+            placeholder="好きなものや撮りたいものなど"
+            placeholderTextColor={c.muted}
+            value={bio}
+            onChangeText={setBioDraft}
+            editable={!busy}
+            multiline
+            style={{
+              minHeight: 88,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: c.muted,
+              borderRadius: 12,
+              color: c.ink,
+              textAlignVertical: 'top',
+            }}
+          />
+          <Text style={{ color: bioLength > profileBioMaxGraphemes ? c.red : c.muted }}>
+            {bioLength} / {profileBioMaxGraphemes}文字
+          </Text>
+          <Text style={{ color: c.muted }}>
+            非公開アカウントの自己紹介は、自分と承認済みのフォロワーだけが見られます。
+          </Text>
           <View
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
           >
             <Text style={{ color: c.ink }}>非公開アカウント</Text>
             <Switch
               accessibilityLabel="非公開アカウント"
+              disabled={busy}
               value={privateAccount}
               onValueChange={setPrivate}
             />
@@ -78,13 +109,19 @@ export function AccountSettings({
           </Text>
           <Button
             secondary
-            disabled={busy}
+            disabled={busy || bioLength > profileBioMaxGraphemes}
             onPress={() =>
               void run(async () => {
-                await api('/v1/me', { displayName: name, isPrivate: privateAccount });
+                await api('/v1/me', {
+                  displayName: name,
+                  isPrivate: privateAccount,
+                  bio: bioDraft,
+                });
                 const me = await api<{ profile: Profile }>('/v1/me'),
                   saved = currentCredentials();
-                if (saved) await saveCredentials({ ...saved, profile: me.profile });
+                if (saved?.profile?.userId !== me.profile.userId) return;
+                await saveCredentials({ ...saved, profile: me.profile });
+                setBioDraft(undefined);
                 setMessage('プロフィールを保存しました。');
               })
             }

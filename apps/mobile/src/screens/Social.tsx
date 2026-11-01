@@ -14,11 +14,14 @@ import { useAuth } from '../services/auth';
 import { Avatar, Button, EmptyState, Icon, IconButton } from '../components/UI';
 import { PostSafety } from '../components/PostSafety';
 import { Posts } from './Posts';
+import { Login } from './Login';
+import { CommunityConsent } from '../components/CommunityConsent';
 import { colors as c } from '../theme';
 
 type User = {
   userId: string;
   displayName: string;
+  bio?: string;
   isPrivate: boolean | number;
   relationship: 'REMOVED' | 'PENDING' | 'APPROVED';
   followers?: number;
@@ -38,7 +41,7 @@ export type SocialRoute =
   | { kind: 'search' | 'inbox' | 'requests' | 'saved' }
   | { kind: 'profile'; userId: string }
   | { kind: 'people'; userId: string; list: 'followers' | 'following' }
-  | { kind: 'post'; postId: string };
+  | { kind: 'post'; postId: string; shared?: boolean };
 const descriptions = {
   follow: 'あなたをフォローしました',
   request: 'フォロー申請が届きました',
@@ -85,7 +88,7 @@ export function Social({
   onCamera: () => void;
   onRead?: (unread: number) => void;
 }) {
-  const { profile: me } = useAuth();
+  const { profile: me, loading, consentRequired } = useAuth();
   const [routes, setRoutes] = useState<SocialRoute[]>([initial]);
   const route = routes[routes.length - 1];
   const currentRoute = useRef(route);
@@ -195,6 +198,16 @@ export function Social({
       setMutating(false);
     }
   }
+  if (route.kind === 'post' && route.shared) {
+    if (loading) return <ActivityIndicator color={c.ink} />;
+    if (!me)
+      return (
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Login onSuccess={() => {}} />
+        </ScrollView>
+      );
+    if (consentRequired) return <CommunityConsent />;
+  }
   const title =
     route.kind === 'search'
       ? 'ユーザーを探す'
@@ -215,6 +228,7 @@ export function Social({
     <View style={{ gap: 16, paddingBottom: 12 }}>
       <Avatar initial={profile.displayName.slice(0, 1)} size={72} />
       <Text style={{ color: c.ink, fontSize: 24, fontWeight: '700' }}>{profile.displayName}</Text>
+      {!!profile.bio && <Text style={{ color: c.ink, lineHeight: 22 }}>{profile.bio}</Text>}
       <Text style={{ color: c.muted }}>
         {profile.isPrivate ? '非公開アカウント' : '公開アカウント'}
       </Text>
@@ -322,7 +336,7 @@ export function Social({
           ) : route.kind === 'post' ? (
             <Posts
               key={route.postId}
-              endpoint={`/v1/posts/${route.postId}`}
+              endpoint={`/v1/posts/${route.postId}${route.shared ? '/shared' : ''}`}
               onUser={openUser}
               onCamera={onCamera}
             />

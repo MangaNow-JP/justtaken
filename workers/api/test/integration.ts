@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
 import { generateKeyPair, exportJWK, compactVerify, importJWK } from 'jose';
 import cbor from 'cbor';
@@ -96,22 +96,9 @@ async function main() {
     equal(jwks.status, 200, 'public JWK endpoint');
     equal(Object.hasOwn(jwks.body.keys[0], 'd'), false, 'private signing key is never exposed');
     const db = await mf.getD1Database('HOME');
-    for (const name of [
-      '0001_initial.sql',
-      '0002_auth_and_publication.sql',
-      '0003_original_quality.sql',
-      '0004_standalone_proofs.sql',
-      '0005_external_anchors.sql',
-      '0006_early_access.sql',
-      '0007_community_safety.sql',
-      '0008_account_deletion.sql',
-      '0009_moderation_audit.sql',
-      '0010_support_account_deletion.sql',
-      '0011_adult_self_declaration.sql',
-      '0012_apple_lifecycle_and_review.sql',
-      '0013_social.sql',
-      '0014_comment_reports.sql',
-    ]) {
+    for (const name of (await readdir('workers/api/migrations/home'))
+      .filter((name) => name.endsWith('.sql'))
+      .sort()) {
       const source = await readFile('workers/api/migrations/home/' + name, 'utf8');
       // Keep trigger blocks together; D1 exec accepts one complete statement per line.
       const statements: string[] = [];

@@ -72,8 +72,9 @@ export interface ConsentState {
   ageConfirmedAt: string | null;
 }
 
-/** Safety, deletion and read-only routes remain available without consent. */
+/** Shared posts require current consent. Existing read, safety and deletion routes remain accessible. */
 export function requiresCommunityConsent(method: string, path: string): boolean {
+  if (method === 'GET') return /^\/v1\/posts\/[A-Za-z0-9_-]+\/shared$/.test(path);
   if (method !== 'POST' && method !== 'PUT') return false;
   if (
     /^\/v1\/users\/[^/]+\/follow$|^\/v1\/follow-requests\/|^\/v1\/posts\/[^/]+\/(like|save|comments)$/.test(
