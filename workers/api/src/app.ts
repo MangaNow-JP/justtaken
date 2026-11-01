@@ -8,6 +8,7 @@ import { bodyJSON, fail, json, requireValue, rpc, unwrap, validID } from './http
 import { integrityConfigured } from './proof';
 import { stage, uploadPart } from './media';
 import { postRoutes } from './posts';
+import { postSharePage } from './post-share';
 import { socialRoutes } from './social';
 import { proofRoutes, publicProofRoutes } from './proofs';
 import { publicProofKeys } from './proof-keys';
@@ -82,6 +83,8 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
   }
   const securityTxt = securityTxtRoute(request);
   if (securityTxt) return securityTxt;
+  const sharedPost = postSharePage(request, env.APP_RETURN_URL);
+  if (sharedPost) return sharedPost;
   const verifier = verifierRoutes(request);
   if (verifier) return verifier;
   const earlyAccess = await earlyAccessRoutes(request, env);
@@ -208,7 +211,7 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
   if (requiresCommunityConsent(method, path)) await requireCommunityConsent(env, principal.userId);
   if (path === '/v1/me' && method === 'GET') {
     const profile = await env.HOME.prepare(
-      'SELECT user_id,display_name,is_private FROM profiles WHERE user_id=?',
+      'SELECT user_id,display_name,bio,is_private FROM profiles WHERE user_id=?',
     )
       .bind(principal.userId)
       .first<Profile>();
@@ -221,6 +224,7 @@ export async function route(request: Request, env: Bindings): Promise<Response> 
       profile: {
         userId: profile!.user_id,
         displayName: profile!.display_name,
+        bio: profile!.bio,
         isPrivate: !!profile!.is_private,
         moderator: isModerator(env, principal.userId),
       },

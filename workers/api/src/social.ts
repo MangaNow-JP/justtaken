@@ -60,10 +60,18 @@ function page<T extends Record<string, any>>(rows: T[], key: string) {
 }
 async function user(env: Bindings, viewer: string, target: string) {
   const row = await env.HOME.prepare(
-    `SELECT ${userFields} FROM profiles u WHERE u.user_id=?2 AND ${visibleUser}`,
+    `SELECT ${userFields},CASE WHEN u.user_id=?1 OR u.is_private=0 OR EXISTS(
+       SELECT 1 FROM followers f WHERE f.target_id=u.user_id AND f.follower_id=?1 AND f.state='APPROVED'
+     ) THEN u.bio ELSE '' END AS bio FROM profiles u WHERE u.user_id=?2 AND ${visibleUser}`,
   )
     .bind(viewer, target)
-    .first<{ userId: string; displayName: string; isPrivate: number; relationship: string }>();
+    .first<{
+      userId: string;
+      displayName: string;
+      bio: string;
+      isPrivate: number;
+      relationship: string;
+    }>();
   if (!row) fail(404, 'USER_NOT_FOUND', 'ユーザーが見つかりません。');
   return row;
 }

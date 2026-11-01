@@ -8,10 +8,12 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
-import { api } from '../services/api';
+import { API_URL, api } from '../services/api';
+import { canSharePost, postShareUrl } from '@justtaken/contracts/post-share';
 import { useAuth } from '../services/auth';
 import { type ServerPost } from '../services/capture';
 import { colors as c } from '../theme';
@@ -115,6 +117,18 @@ export function PostInteractions({
           <Text style={{ color: c.ink }}>{social.comment_count ?? 0}</Text>
         </Pressable>
         <View style={{ flex: 1 }} />
+        {canSharePost(post) && (
+          <IconButton
+            name="share-2"
+            label="投稿をシェア"
+            disabled={busy}
+            onPress={() =>
+              void act(async () => {
+                await Share.share({ message: postShareUrl(post.post_id, API_URL) });
+              })
+            }
+          />
+        )}
         <IconButton
           name="bookmark"
           disabled={busy}

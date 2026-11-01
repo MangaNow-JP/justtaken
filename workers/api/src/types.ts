@@ -40,6 +40,7 @@ export interface Principal {
 export interface Profile {
   user_id: string;
   display_name: string;
+  bio: string;
   is_private: number;
   status: string;
   session_epoch: number;

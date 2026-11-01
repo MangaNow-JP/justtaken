@@ -10,25 +10,26 @@ import { useAuth } from '../services/auth';
 import { colors as c } from '../theme';
 import { PostSafety } from '../components/PostSafety';
 export function Posts({
-  scope = 'feed',
+  scope = 'recommended',
   revision = 0,
   activeView = true,
   onCamera,
+  onDiscover,
   onUser = () => {},
   endpoint,
   header,
 }: {
-  scope?: 'feed' | 'mine' | 'following';
+  scope?: 'recommended' | 'mine' | 'following';
   revision?: number;
   activeView?: boolean;
   onCamera: () => void;
+  onDiscover?: () => void;
   onUser?: (id: string) => void;
   endpoint?: string;
   header?: ReactNode;
 }) {
   const [playing, setPlaying] = useState<string | null>(null);
   const generation = useRef(0);
-  const [feed, setFeed] = useState<'feed' | 'following'>('feed');
   useEffect(() => {
     if (!activeView) setPlaying(null);
   }, [activeView]);
@@ -42,8 +43,9 @@ export function Posts({
     setBusy(true);
     setError('');
     try {
-      const base = endpoint ?? `/v1/feed?scope=${scope === 'feed' ? feed : scope}`;
+      const base = endpoint ?? `/v1/feed?scope=${scope}`;
       const data = await api<{
+        scope?: string;
         posts?: ServerPost[];
         post?: ServerPost;
         nextCursor: string | null;
@@ -54,6 +56,9 @@ export function Posts({
             : ''),
       );
       if (generation.current !== request) return;
+      // Earlier API versions treated unknown feed scopes as the mixed-visibility feed.
+      if (!endpoint && scope === 'recommended' && data.scope !== 'recommended')
+        throw new Error('おすすめの投稿をまだ取得できません。');
       const result = {
         posts: data.posts ?? (data.post ? [data.post] : []),
         nextCursor: data.nextCursor ?? null,
@@ -83,7 +88,7 @@ export function Posts({
     return () => {
       generation.current++;
     };
-  }, [scope, revision, endpoint, feed]);
+  }, [scope, revision, endpoint]);
   return (
     <ScrollView
       onScrollBeginDrag={() => setPlaying(null)}
@@ -99,27 +104,6 @@ export function Posts({
           <Icon name="shield" size={18} />
         </View>
       )}
-      {!endpoint && scope === 'feed' && (
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {(['feed', 'following'] as const).map((value) => (
-            <Pressable
-              key={value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: feed === value }}
-              onPress={() => setFeed(value)}
-              style={{
-                padding: 12,
-                borderRadius: 20,
-                backgroundColor: feed === value ? c.pale : c.white,
-              }}
-            >
-              <Text style={{ color: c.ink }}>
-                {value === 'feed' ? 'みんなの投稿' : 'フォロー中'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
       {!!error && (
         <View style={s.notice}>
           <Text style={s.small}>{error}</Text>
@@ -128,21 +112,35 @@ export function Posts({
           </Button>
         </View>
       )}
-      {!posts.length && !busy && !error && (
-        <>
-          <EmptyState
-            icon="camera"
-            title={endpoint ? '表示できる投稿はありません' : '最初の瞬間を、残そう。'}
-          >
-            {endpoint
-              ? '公開範囲やフォローの状態によって表示される投稿が変わります。'
-              : '投稿した写真・動画はここに表示されます。'}
-          </EmptyState>
-          <Button icon="camera" onPress={onCamera}>
-            写真・動画を撮る
-          </Button>
-        </>
-      )}
+      {!posts.length &&
+        !busy &&
+        !error &&
+        (onDiscover ? (
+          <>
+            <EmptyState icon="users" title="表示できる投稿はまだありません">
+              {scope === 'following'
+                ? 'フォロー中の人が投稿すると、ここに表示されます。'
+                : 'まだフォローしていない人の新しい公開投稿が、ここに表示されます。'}
+            </EmptyState>
+            <Button secondary icon="search" onPress={onDiscover}>
+              ユーザーを探す
+            </Button>
+          </>
+        ) : (
+          <>
+            <EmptyState
+              icon="camera"
+              title={endpoint ? '表示できる投稿はありません' : '最初の瞬間を、残そう。'}
+            >
+              {endpoint
+                ? '公開範囲やフォローの状態によって表示される投稿が変わります。'
+                : '投稿した写真・動画はここに表示されます。'}
+            </EmptyState>
+            <Button icon="camera" onPress={onCamera}>
+              写真・動画を撮る
+            </Button>
+          </>
+        ))}
       {posts.map((post) => (
         <PostCard
           key={post.post_id}

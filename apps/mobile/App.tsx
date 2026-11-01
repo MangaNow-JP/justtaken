@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -24,6 +25,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureModule, type LocalCapture } from '@justtaken/capture';
 import { countGraphemes } from '@justtaken/contracts/text';
+import { sharedPostId } from '@justtaken/contracts/post-share';
 import { colors as c } from './src/theme';
 import { appStyles as s } from './src/appStyles';
 import {
@@ -35,7 +37,7 @@ import {
   IconButton,
   type IconName,
 } from './src/components/UI';
-import { Feed } from './src/screens/Feed';
+import { Feed, HomeTabs, type HomeTab } from './src/screens/Feed';
 import { WatermarkPreferenceProvider } from './src/preferences/WatermarkPreference';
 import { WatermarkSettings } from './src/components/WatermarkSettings';
 import { OriginalPhoto } from './src/components/OriginalPhoto';
@@ -49,7 +51,7 @@ import { Posts } from './src/screens/Posts';
 import { Social, useUnreadNotifications, type SocialRoute } from './src/screens/Social';
 import { LaunchAnimation } from './src/components/LaunchAnimation';
 import { Proofs } from './src/screens/Proofs';
-import { logout, APIError } from './src/services/api';
+import { API_URL, logout, APIError } from './src/services/api';
 import {
   commitCapture,
   certifyCapture,
@@ -99,7 +101,36 @@ function JustTaken() {
   const [uploadError, setUploadError] = useState('');
   const desktop = Platform.OS === 'web' && width > 900;
   const [tab, setTab] = useState<Tab>('home');
+  const [homeTab, setHomeTab] = useState<HomeTab>('recommended');
+  const showExplore = tab === 'explore' || (tab === 'home' && homeTab === 'discover');
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [pendingSharedPost, setPendingSharedPost] = useState<string | null>(null);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let active = true;
+    let receivedLink = false;
+    function receive(url: string | null | undefined) {
+      const id = url && sharedPostId(url, API_URL);
+      if (!id) return;
+      receivedLink = true;
+      setPendingSharedPost(id);
+    }
+    const listener = Linking.addEventListener('url', ({ url }) => receive(url));
+    void Linking.getInitialURL()
+      .then((url) => {
+        if (active && !receivedLink) receive(url);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      listener.remove();
+    };
+  }, []);
+  useEffect(() => {
+    if (!pendingSharedPost || sending || sheet?.kind === 'compose') return;
+    setSheet({ kind: 'social', route: { kind: 'post', postId: pendingSharedPost, shared: true } });
+    setPendingSharedPost(null);
+  }, [pendingSharedPost, sending, sheet?.kind]);
   const [likes, setLikes] = useState<string[]>([]);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [draftNotes, setDraftNotes] = useState<Record<string, DraftNote>>({});
@@ -165,8 +196,11 @@ function JustTaken() {
     setPlayingDraft(null);
     setSheet({ kind: 'compose', capture });
   }
-  const currentTitle =
-    tab === 'explore' ? '見つける' : tab === 'notifications' ? 'お知らせ' : 'マイページ';
+  const currentTitle = showExplore
+    ? '見つける'
+    : tab === 'notifications'
+      ? 'お知らせ'
+      : 'マイページ';
   const sheetTitle =
     sheet?.kind === 'social'
       ? 'JustTaken'
@@ -264,24 +298,36 @@ function JustTaken() {
               />
             </View>
           )}
+          {tab === 'home' && hydrated && !consentRequired && (
+            <HomeTabs selected={homeTab} onChange={setHomeTab} />
+          )}
           <View style={s.main}>
             {!hydrated ? (
               <ActivityIndicator color={c.ink} />
             ) : profile && consentRequired && tab !== 'profile' ? (
               <CommunityConsent />
-            ) : tab === 'home' && profile ? (
+            ) : tab === 'home' && profile && homeTab !== 'discover' ? (
               <Posts
-                key={profile.userId}
+                key={profile.userId + homeTab}
+                scope={homeTab}
                 activeView={!sheet}
                 revision={postRevision}
                 onUser={openUser}
+                onDiscover={() => setHomeTab('discover')}
                 onCamera={() => setTab('camera')}
               />
-            ) : tab === 'home' && Platform.OS !== 'web' ? (
+            ) : tab === 'home' && !profile && (Platform.OS !== 'web' || homeTab === 'following') ? (
               <ScrollView contentContainerStyle={{ padding: 24 }}>
+                <Text style={s.small}>
+                  {homeTab === 'following'
+                    ? 'ログインすると、フォロー中の人の投稿が表示されます。'
+                    : homeTab === 'discover'
+                      ? 'ログインすると、表示名でユーザーを検索できます。'
+                      : 'ログインすると、まだフォローしていない人の新しい公開投稿が表示されます。'}
+                </Text>
                 <Login onSuccess={() => setTab('home')} />
               </ScrollView>
-            ) : tab === 'home' ? (
+            ) : tab === 'home' && !showExplore ? (
               <Feed
                 likes={likes}
                 bookmarks={bookmarks}
@@ -293,14 +339,12 @@ function JustTaken() {
                   setSheet({ kind: 'comments', post });
                 }}
                 onMore={(post) => setSheet({ kind: 'more', post })}
-                onExplore={() => setTab('explore')}
                 onCamera={() => setTab('camera')}
               />
-            ) : (tab === 'explore' || tab === 'notifications') &&
-              (profile || Platform.OS !== 'web') ? (
+            ) : (showExplore || tab === 'notifications') && (profile || Platform.OS !== 'web') ? (
               <Social
                 key={`${profile?.userId}:${tab}`}
-                initial={{ kind: tab === 'explore' ? 'search' : 'inbox' }}
+                initial={{ kind: showExplore ? 'search' : 'inbox' }}
                 onCamera={() => setTab('camera')}
                 onRead={setUnread}
               />
@@ -323,14 +367,14 @@ function JustTaken() {
                 keyboardShouldPersistTaps="handled"
               >
                 <Text style={s.pageEyebrow}>
-                  {tab === 'explore'
+                  {showExplore
                     ? 'LITTLE DISCOVERIES'
                     : tab === 'profile'
                       ? 'YOUR LITTLE MOMENTS'
                       : 'STAY CONNECTED'}
                 </Text>
                 <Text style={s.pageTitle}>{currentTitle}</Text>
-                {tab === 'explore' ? (
+                {showExplore ? (
                   <>
                     <View style={s.search}>
                       <Icon name="search" size={19} color={c.muted} />
@@ -407,6 +451,7 @@ function JustTaken() {
                       <Text style={s.profileName}>
                         {profile?.displayName ?? 'あなたの、小さな記録。'}
                       </Text>
+                      {!!profile?.bio && <Text style={s.bodyText}>{profile.bio}</Text>}
                       <Text style={s.small}>
                         {profile ? 'ログイン済み' : 'ログインして、日常を残そう'}
                       </Text>
@@ -735,6 +780,7 @@ function JustTaken() {
                       <WatermarkSettings />
                       <LegalLinks />
                       <AccountSettings
+                        key={profile?.userId ?? 'guest'}
                         onDeleted={() => {
                           setDrafts([]);
                           setDraftNotes({});

@@ -4,6 +4,7 @@ import { ApiError, bodyJSON, fail, json, requireValue, unwrap, validID } from '.
 import { originalKey } from './media';
 import type { Bindings, Principal, Profile } from './types';
 import { socialPosts } from './social';
+import { canSharePost } from '@justtaken/contracts/post-share';
 export interface PostRow {
   post_id: string;
   author_id: string;
@@ -152,36 +153,27 @@ export async function postRoutes(
         fail(400, 'INVALID_CURSOR', '一覧を更新してください。');
       }
     }
-    const own = url.searchParams.get('scope') === 'mine',
-      at = cursor?.at ?? '9999',
-      id = cursor?.id ?? '~';
-    const acl = own
-      ? 'p.author_id=?'
-      : "(p.author_id=? OR (p.state='PUBLISHED' AND p.visibility!='private' AND ((p.visibility='public' AND u.is_private=0) OR EXISTS(SELECT 1 FROM followers f WHERE f.target_id=p.author_id AND f.follower_id=? AND f.state='APPROVED'))))";
+    const scope = url.searchParams.get('scope');
+    const followsAuthor =
+      "EXISTS(SELECT 1 FROM followers f WHERE f.target_id=p.author_id AND f.follower_id=?1 AND f.state='APPROVED')";
+    const publicPost = "(p.visibility='public' AND u.is_private=0)";
+    let visibility = `p.author_id=?1 OR (p.state='PUBLISHED' AND p.visibility!='private' AND (${publicPost} OR ${followsAuthor}))`;
+    if (scope === 'mine') visibility = 'p.author_id=?1';
+    if (scope === 'following')
+      visibility = `p.author_id=?1 OR (p.state='PUBLISHED' AND p.visibility!='private' AND ${followsAuthor})`;
+    if (scope === 'recommended')
+      visibility = `p.author_id!=?1 AND p.state='PUBLISHED' AND p.moderation='ALLOWED' AND ${publicPost} AND NOT ${followsAuthor}`;
     const results = await env.HOME.prepare(
-      selectPost +
-        " WHERE u.status='ACTIVE' AND p.state NOT IN ('DELETED','HIDDEN') AND " +
-        acl +
-        (url.searchParams.get('scope') === 'following'
-          ? " AND (p.author_id=? OR EXISTS(SELECT 1 FROM followers f WHERE f.target_id=p.author_id AND f.follower_id=? AND f.state='APPROVED'))"
-          : '') +
-        ' AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.author_id) OR (b.blocker_id=p.author_id AND b.blocked_id=?)) AND (p.created_at<? OR (p.created_at=? AND p.post_id<?)) ORDER BY p.created_at DESC,p.post_id DESC LIMIT 21',
+      `${selectPost} WHERE u.status='ACTIVE' AND p.state NOT IN ('DELETED','HIDDEN') AND (${visibility})
+       AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=?1 AND b.blocked_id=p.author_id) OR (b.blocker_id=p.author_id AND b.blocked_id=?1))
+       AND (p.created_at<?2 OR (p.created_at=?2 AND p.post_id<?3)) ORDER BY p.created_at DESC,p.post_id DESC LIMIT 21`,
     )
-      .bind(
-        ...(own ? [principal.userId] : [principal.userId, principal.userId]),
-        ...(url.searchParams.get('scope') === 'following'
-          ? [principal.userId, principal.userId]
-          : []),
-        principal.userId,
-        principal.userId,
-        at,
-        at,
-        id,
-      )
+      .bind(principal.userId, cursor?.at ?? '9999', cursor?.id ?? '~')
       .all<PostRow>();
     const items = results.results.slice(0, 20),
       last = items.at(-1);
     return json({
+      ...(scope === 'recommended' ? { scope } : {}),
       posts: await socialPosts(env, items, principal.userId),
       nextCursor:
         results.results.length > 20 && last
@@ -192,10 +184,11 @@ export async function postRoutes(
     });
   }
   const match =
-    /^\/v1\/posts\/([A-Za-z0-9_-]+)(?:\/(publish|media-grants|record|media\/(original|thumbnail|poster)))?$/.exec(
+    /^\/v1\/posts\/([A-Za-z0-9_-]+)(?:\/(shared|publish|media-grants|record|media\/(original|thumbnail|poster)))?$/.exec(
       path,
     );
   if (!match) return;
+  if (match[2] === 'shared' && method !== 'GET') return;
   if (!match[2] && method === 'DELETE') {
     const tombstone = await env.HOME.prepare(
       "SELECT post_id FROM posts WHERE post_id=? AND author_id=? AND state='DELETED'",
@@ -205,8 +198,11 @@ export async function postRoutes(
     if (tombstone) return json({ deleted: true });
   }
   const p = await readPost(env, match[1], principal.userId);
-  if (!match[2] && method === 'GET')
+  if ((!match[2] || match[2] === 'shared') && method === 'GET') {
+    if (match[2] === 'shared' && (p.is_private || !canSharePost(p)))
+      fail(404, 'POST_NOT_FOUND', '投稿が見つかりません。');
     return json({ post: (await socialPosts(env, [p], principal.userId))[0] });
+  }
   if (!match[2] && method === 'DELETE') {
     if (p.author_id !== principal.userId) fail(403, 'NOT_OWNER', 'この投稿は削除できません。');
     const retained = await env.HOME.prepare(

@@ -122,7 +122,7 @@ export class AuthSession extends DurableObject<Bindings> {
       ).bind(capturePolicy.quotaBytes, userId),
     ]);
     const profile = await this.env.HOME.prepare(
-      'SELECT user_id,display_name,is_private,status,session_epoch FROM profiles WHERE user_id=?',
+      'SELECT user_id,display_name,bio,is_private,status,session_epoch FROM profiles WHERE user_id=?',
     )
       .bind(userId)
       .first<Profile>();
@@ -162,6 +162,7 @@ export class AuthSession extends DurableObject<Bindings> {
         ? {
             userId: profile.user_id,
             displayName: profile.display_name,
+            bio: profile.bio,
             isPrivate: !!profile.is_private,
           }
         : undefined,

@@ -7,6 +7,7 @@ export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:878
 export type Profile = {
   userId: string;
   displayName: string;
+  bio?: string;
   isPrivate: boolean;
   moderator?: boolean;
 };
